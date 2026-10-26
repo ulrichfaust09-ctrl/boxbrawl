@@ -120,7 +120,7 @@
     },
     ghost: {
       key:'ghost', name:'Ghost Guy', emoji:'👻', maxhp:1000,
-      ghostDamage:15, ghostInterval:0.2, speed:180, r:48,
+      ghostDamage:15, ghostInterval:0.2, ghostRangeMult:2, speed:180, r:48,
       modifiers:{
         fear:{name:'Fear', desc:'Every 200 damage gives Ghost and his target 15% movement speed'},
         nightmare:{name:'Nightmare', desc:'Every 100 damage adds 20 nightmare damage'}
@@ -517,14 +517,19 @@
     boxing: {
       key:'boxing', name:'Boxing Guy', emoji:'🥊', maxhp:1000,
       punchDamage:80, uppercutDamage:120, downDamage:90,
-      fireRate:0.6, meleeRange:78,
+      fireRate:0.6, meleeRange:98,
       dodgeBase:0.175, dodgePerChunk:0.10, dodgeHpChunk:33,
+      championWindow:0.4, championStep:10, championMaxStacks:5, championIdleTime:3, championIdleDamage:25, championIdleStun:0.4,
+      parryWindow:2, parryDamage:200, parryChance:0.5, parryChanceLow:0.75, parryLowHp:0.5,
+      dodgeChance:0.5, dodgePush:260, dodgeStep:70, blockDuration:0.75, dodgeStun:0.75, blockStart:0.3, blockEnd:0.6, blockCooldown:2, reactWindow:0.25, comboChance:0.5, comboMin:5, comboMax:10, comboGap:0.08,
       speed:180, r:52,
       modifiers:{
+        champion:{name:'Champion', desc:'Hits landing within 0.4s of the last one add +10 damage (up to +50). After 3s without a hit, the next hit deals +25 damage and stuns for an extra 0.4s'},
+        parry:{name:'Parry!', desc:'After taking 200 damage within 2s, parry unlocks: 50% chance (75% below 50% HP) to parry hits. Melee hits are sent back at the attacker, projectiles are reflected'},
         chaining:{name:'Chaining', desc:'Landing a hit within 0.4s of the last one gives +10 damage, stacking up to +50'},
         strongBlow:{name:'Strong Blow', desc:"After 3s without landing a hit, the next attack deals +25 damage and stuns for an extra 0.25s"}
       },
-      desc:'Punches every 0.6s when near, chaining hit after hit, with brief stun and a knockback. Catch a foe above him and he uppercuts for 120 dmg, sending them flying; catch one below and he strikes downward for 90 dmg with a longer stun. Against incoming projectiles he has a 17.5% chance to dodge and step clear, rising 10% for every 33% of his HP he has lost.'
+      desc:'DODGE! 50% to slip any hit. REACT! strikes first when a melee foe is about to hit. COMBO! base punches can flurry into 5-10 more punches. Punches every 0.6s when near, chaining hit after hit, with brief stun and a knockback. Catch a foe above him and he uppercuts for 120 dmg, sending them flying; catch one below and he strikes downward for 90 dmg with a longer stun. Against incoming projectiles he has a 17.5% chance to dodge and step clear, rising 10% for every 33% of his HP he has lost.'
     },
     referee: {
       key:'referee', name:'Referee Guy', emoji:'🟨', maxhp:1000,
@@ -610,23 +615,23 @@
     oldguy: {
       key:'oldguy', name:'Old Guy', emoji:'👴', maxhp:1000,
       speed:150, r:52,
-      swarmInterval:3, swarmDuration:1, flyerCount:16, flyerSpeed:260,
+      swarmInterval:4, swarmDuration:1, flyerCount:16, flyerSpeed:260,
       poopDamage:25, poopLife:1.5, poopSlow:0.5, poopRadius:30,
-      ringCount:10, ringPigeonHp:50, ringLife:3, ringDiveDamage:10,
+      ringCount:4, ringPigeonHp:50, ringLife:3, ringDiveDamage:10,
       offenseChance:0.5, offenseDiveDamage:10, offensePoopBonus:5,
       modifiers:{
-        pigeonDefense:{name:'Pigeon Defense', desc:'After every swarm, 10 pigeons ring the Old Guy for 3s as a shield (50 HP each). Popped pigeons dive at the enemy for 10 dmg'},
+        pigeonDefense:{name:'Pigeon Defense', desc:'After every swarm, 4 pigeons ring the Old Guy for 3s as a shield (50 HP each). Popped pigeons dive at the enemy for 10 dmg'},
         pigeonOffense:{name:'Pigeon Offense', desc:'Each pigeon has a 50% chance to poop and dive at the enemy (homing, 10 dmg). Poop damage +5'}
       },
-      desc:'Throws bread every 3s. A huge pigeon swarm flies across the arena, pooping on the ground: 25 dmg to anything hit mid-air, and ground poop slows units by 50% for 1.5s.'
+      desc:'Throws bread every 4s after each swarm ends. A huge pigeon swarm flies across the arena, pooping on the ground: 25 dmg to anything hit mid-air, and ground poop slows units by 50% for 1.5s.'
     },
     canadian: {
       key:'canadian', name:'Canadian Guy', emoji:'🍁', maxhp:1000,
       speed:160, r:50,
       fireRate:0.25, volleyAngleStep:10, volleyBalls:3,
-      snowDamage:5, snowSpeed:420, snowRadius:9,
+      snowDamage:2.5, snowSpeed:420, snowRadius:9, pauseEvery:25, pauseTime:3,
       growTime:1, growMaxDamageBonus:2.5, growMaxSizeBonus:1.5,
-      bioDamageBonus:5, rockChance:0.33, rockDamage:10,
+      bioDamageBonus:2.5, rockChance:0.33, rockDamage:5,
       yellowChance:0.33, yellowSlow:0.09, yellowDuration:10,
       snowSlowPerStack:0.05, snowSlowMaxStacks:10,
       modifiers:{
@@ -638,7 +643,13 @@
     guitar: {
       key:'guitar', name:'Guitar Guy', emoji:'🎸', maxhp:1000,
       speed:150, r:50,
-      noteDamage:30, noteFreqs:[82.41,110,146.83,196],
+      noteDamage:30, noteFreqs:[82.41,110,146.83,196,246.94],
+      songs:[
+        {name:'Jingle Bells', bpm:160, freqs:[261.63,293.66,329.63,349.23,392.00], notes:[[2,1],[2,1],[2,2],[2,1],[2,1],[2,2],[2,1],[4,1],[0,1],[1,1],[2,4],[3,1],[3,1],[3,1],[3,1],[3,1],[2,1],[2,1],[2,1],[2,1],[1,1],[1,1],[2,1],[1,1],[4,4]]},
+        {name:'Mary Had a Little Lamb', bpm:120, freqs:[261.63,293.66,329.63,349.23,392.00], notes:[[2,1],[1,1],[0,1],[1,1],[2,1],[2,1],[2,2],[1,1],[1,1],[1,2],[2,1],[4,1],[4,2],[2,1],[1,1],[0,1],[1,1],[2,1],[2,1],[2,1],[2,1],[1,1],[1,1],[2,1],[1,1],[0,2]]},
+        {name:'Ode to Joy', bpm:110, freqs:[261.63,293.66,329.63,349.23,392.00], notes:[[2,1],[2,1],[3,1],[4,1],[4,1],[3,1],[2,1],[1,1],[0,1],[0,1],[1,1],[2,1],[2,1.5],[1,0.5],[1,2]]},
+        {name:'Hot Cross Buns', bpm:120, freqs:[261.63,293.66,329.63,349.23,392.00], notes:[[2,1],[1,1],[0,2],[2,1],[1,1],[0,2],[0,0.5],[0,0.5],[0,0.5],[0,0.5],[1,1],[1,1],[1,1],[1,1],[2,1],[1,1],[0,2]]}
+      ],
       gapMin:0.125, gapMax:0.5, lightTime:0.25,
       finisherBonus:7.5, finisherChance:0.1, finisherStun:1, finisherSelfDisable:0.4,
       sequencedCd:0.25, sequencedMaxNotes:3, holdMin:0.05, holdMax:0.5, holdStep:0.05, holdDamage:2.5,
@@ -690,7 +701,7 @@
       desc:'Bakes every 3s: vanilla cake (heals 50, only when hurt), chocolate cake (50 dmg, slows 70% for 1.5s), caramel cake (75 dmg, stuns 0.5s), or 5 cookies over 1s (20 dmg each).'
     },
     jack: {
-      key:'jack', name:'Jack Ahmmer', emoji:'🔨', maxhp:1000,
+      key:'jack', name:'Jackhammer Guy', emoji:'🔨', maxhp:1000,
       speed:150, r:50,
       jackDamage:40, jackInterval:0.5, jackDuration:1.5, jackCooldown:1,
       faStep:0.25, faBonus:7.5, letItNotGoBonus:0.5,
@@ -710,6 +721,57 @@
         spiky:{name:'Spiky', desc:'Enemies touching the cactus take 40 damage and get a stuck spike (stick damage only)'}
       },
       desc:'Fires spikes at the nearest enemy: 50 dmg on hit and the spike sticks, dealing 15 every 2s. Spikes that hit a wall stay and deal 20 on touch.'
+    },
+    equitation: {
+      key:'equitation', name:"L'Équitation", emoji:'🐎', maxhp:1000,
+      speed:248, r:52,
+      tramplePhase:true, trampleDamage:100, stompDamage:25, stompTick:0.5,
+      horsepowerSpeedMult:1.99/1.55, armoredHp:200, armoredStompBonus:5,
+      modifiers:{
+        horsepower:{name:'Horsepower', desc:'Horse is now 99% faster than an average person (instead of 55%)'},
+        armored:{name:'Armored Horse', desc:'+200 HP and +5 stomp damage'}
+      },
+      desc:'Tramples enemies for 100 damage on first contact, passing through them. Then stomps for 25 damage every 0.5s while overlapping. 55% faster than an average person.',
+      hooks:{ spawnSpeedMult: (modifiers)=> modifiers.horsepower ? 1.99/1.55 : 1 }
+    },
+    construction: {
+      key:'construction', name:'Construction Guy', emoji:'🧱', maxhp:1000,
+      speed:130, r:50,
+      buildInterval:4, wallDurability:5, wallMax:4, wallDistance:95, wallLength:92, wallThick:22,
+      bluePrintBuildMult:1.5, bluePrintRange:150, bluePrintDamage:200,
+      negateChance:0.33, negateThreshold:125,
+      modifiers:{
+        oneWithWall:{name:'One With The Wall', desc:'33% of damage taken is negated. Hits over 125 damage cost every wall 1 durability'},
+        bluePrint:{name:'Blue Print', desc:'1.5s faster builds. Builds straight onto nearby enemies, instantly breaking for 200 damage'}
+      },
+      desc:'Builds a brick wall every 4s. Projectiles bounce off walls (1 durability each). Melee attacks through a wall cost 1 durability and reflect their damage back to the attacker. Walls break after 5 durability.'
+    },
+    flintlock: {
+      key:'flintlock', name:'Flintlock Guy', emoji:'🔫', maxhp:1000,
+      speed:120, r:48, fireRate:1,
+      normalDamage:100, normalMiss:0.44,
+      tooMuchDamage:200, tooMuchRange:200, tooMuchRecoil:75,
+      tooLittleDamage:50,
+      weights:{normal:0.5, tooMuch:0.25, tooLittle:0.25},
+      coinBonus:25, diceInterval:2,
+      modifiers:{
+        coin:{name:'Coin', desc:'Flips and hits a coin before shooting: 100% hit rate and +25 damage'},
+        gambler:{name:'Gambler', desc:'Rolls a die every 2s and empowers the next shot: 1 normal, 2 +25% dmg, 3 two bullets, 4 +75% dmg (50% dealt back), 5 +50% dmg and heals 33% of damage, 6 100% hit +77% dmg'}
+      },
+      desc:'Aims at the nearest enemy and fires every 1s. Normal shots deal 100 (44% miss). Too much deals 200 at short range and 75 back to himself. Too little deals 50 with a 100% hit rate.'
+    },
+    guyincharge: {
+      key:'guyincharge', name:'Guy In Charge', emoji:'🕴️', maxhp:1000,
+      speed:120, r:50,
+      crowbarDamage:75, crowbarRange:90, crowbarInterval:1,
+      callThreshold:250, henchCount:5, exitSpeed:260, exitTime:0.8,
+      rocketDamage:100, rocketAoe:75, rocketInterval:0.9, rocketCount:5, rocketSpeed:520,
+      armyExtra:2, armyCooldown:0, ammoExtraShots:2, ammoCooldownCut:0.15,
+      modifiers:{
+        army:{name:'Army', desc:'+2 henchmen, and they have the Goons modifier'},
+        moreAmmo:{name:'More Ammo', desc:'+2 rocket shots and -0.15s rocket cooldown'}
+      },
+      desc:'Swings a crowbar every 1s for 75 damage. After taking 250 damage he leaves to call backup: 5 henchmen arrive from the sides. Once they are defeated he returns with a rocket launcher, firing 5 AoE rockets for 100 damage, then goes back to the crowbar.'
     },
     megaphone: {
       key:'megaphone', name:'Megaphone Guy', emoji:'📢', maxhp:1000,
