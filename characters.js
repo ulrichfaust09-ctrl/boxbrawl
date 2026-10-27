@@ -773,6 +773,19 @@
       },
       desc:'Swings a crowbar every 1s for 75 damage. After taking 250 damage he leaves to call backup: 5 henchmen arrive from the sides. Once they are defeated he returns with a rocket launcher, firing 5 AoE rockets for 100 damage, then goes back to the crowbar.'
     },
+    sukuna: {
+      key:'sukuna', name:'Sukuna Guy', emoji:'👹', maxhp:1000,
+      speed:150, r:50,
+      shrineStartCd:5, shrineCd:11, shrineDuration:4, shrineSlashes:100, shrineSlashDamage:1.1, shrineSlashStun:0.05, shrineRadius:130,
+      wordCd:7, wordDamage:100, wordShrineDamage:150, wordShrineExtraSlashes:25,
+      fugaCd:10, fugaDamage:90, fugaRadius:160,
+      modifiers:{
+        wordCuttingSlash:{name:'Word Cutting Slash', desc:'Every 7s slashes the enemy for 100 dmg. During the shrine: 150 dmg and 25 extra slashes'},
+        cleaveMark:{name:'Cleave Mark', desc:'Each enemy hit by Word Cutting Slash is marked for 3s. The next hit on them deals 25% more damage'},
+        fuga:{name:'Fuga', desc:'Every 10s fires a flame bow: AoE of 90 dmg at the center, falling off toward the edge'}
+      },
+      desc:'Malevolent Shrine every 11s (first at 5s): for 4s, enemies in the shrine take 100 slashes of 1.1 damage, each stunning for 0.05s.'
+    },
     megaphone: {
       key:'megaphone', name:'Megaphone Guy', emoji:'📢', maxhp:1000,
       speed:170, r:50,
