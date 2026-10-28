@@ -24,6 +24,18 @@
   "use strict";
 
   const CHAR_DEFS = {
+    coolguy: {
+      key:'coolguy', name:'Cool Guy', emoji:'😎', maxhp:1000,
+      speed:150, r:52,
+      throwInterval:1, glassDamage:35, glassSpeed:520, glassRange:495,
+      explosionDamage:115, explosionRadius:80,
+      modifiers:{
+        badass:{name:'Badass', desc:'Each glass hit causes a 25 dmg mini explosion where it lands'},
+        trickyshoty:{name:'Trickyshoty', desc:'+15 glasses damage, +20% explosion size'}
+      },
+      desc:'Throws piercing sunglasses for 35 dmg every 1s. When they return, he explodes for 115 dmg in a small area.'
+    },
+
     blacksmith: {
       key:'blacksmith', name:'Blacksmith Guy', emoji:'🔨', maxhp:1000,
       damage:10, fireRate:1.2, meleeRange:84, nearRange:193,
