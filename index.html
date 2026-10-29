@@ -199,12 +199,13 @@
   .hpBox.right{text-align:right;}
   .hpName{font-family:'Cinzel',serif;font-size:.95rem;font-weight:600;display:flex;align-items:center;gap:8px;letter-spacing:.4px;}
   .hpBox.right .hpName{justify-content:flex-end;}
-  .hpBarOuter{height:13px;border-radius:7px;background:#1a1420;margin-top:7px;overflow:hidden;border:1px solid var(--line);
+  .hpBarOuter{position:relative;height:13px;border-radius:7px;background:#1a1420;margin-top:7px;overflow:hidden;border:1px solid var(--line);
     box-shadow:inset 0 2px 4px rgba(0,0,0,.5);}
   .hpBarInner{height:100%;transition:width .15s ease-out;position:relative;}
   .hpBarInner::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 55%);}
-  .hpBarInner.a{background:linear-gradient(90deg,#2c8fa3,var(--teamA));box-shadow:0 0 10px var(--teamA-glow);}
-  .hpBarInner.b{background:linear-gradient(90deg,var(--teamB),#a33333);box-shadow:0 0 10px var(--teamB-glow);}
+  .hpBarInner.a{background:linear-gradient(90deg,#1f4f9a,#2f6fc4);box-shadow:0 0 10px rgba(47,111,196,.45);}
+  .hpShield{position:absolute;top:0;bottom:0;background:#4da6ff;box-shadow:0 0 8px rgba(77,166,255,.6);}
+  .hpBarInner.b{background:linear-gradient(90deg,#e0474c,#a33333);box-shadow:0 0 10px var(--teamB-glow);}
   .hpSub{font-family:var(--mono);font-size:.68rem;color:var(--dim);margin-top:5px;letter-spacing:.3px;}
 
   #canvasWrap{
@@ -335,6 +336,36 @@
   #speedBar{display:flex;gap:8px;align-items:center;justify-content:center;margin:0 0 8px;font-size:.75rem;color:var(--dim);}
   #speedBar button{background:#181420;color:var(--text);border:2px solid var(--line);padding:5px 12px;cursor:pointer;font-size:.75rem;}
   #speedBar button.on{border-color:var(--gold);color:var(--gold-bright);}
+  .generalBox{position:relative;margin:0 0 10px;padding:0;background:#181420;border:2px solid var(--line);box-sizing:border-box;}
+  .generalBox.open{z-index:1000;}
+  .generalBox.a{--thumb:#3d7bd9;}
+  .generalBox.b{--thumb:#d9443d;}
+  .generalBox.a{border-color:#3d7bd9;}
+  .generalBox.b{border-color:#d9443d;}
+  .genToggle{width:100%;box-sizing:border-box;padding:8px 10px;background:none;border:0;color:var(--text);font-size:.7rem;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+  .genToggle:hover{color:var(--gold-bright);}
+  .genList{position:absolute;top:calc(100% + 2px);left:-2px;right:-2px;z-index:1000;background:#181420;border:2px solid var(--line);border-top:none;box-sizing:border-box;padding:4px 8px 8px;max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--thumb) #0f0c16;}
+  .generalBox.a .genList{border-color:#3d7bd9;}
+  .generalBox.b .genList{border-color:#d9443d;}
+  .genList::-webkit-scrollbar{width:14px;}
+  .genList::-webkit-scrollbar-track{background:#0f0c16;border-left:2px solid #2b2438;}
+  .genList::-webkit-scrollbar-thumb{background:var(--thumb);border:2px solid #0f0c16;box-shadow:inset 2px 2px 0 rgba(255,255,255,.35),inset -2px -2px 0 rgba(0,0,0,.4);}
+  .genList::-webkit-scrollbar-thumb:hover{filter:brightness(1.2);}
+  .genList[hidden]{display:none;}
+  .generalEmpty{font-size:.7rem;color:var(--dim);padding:4px 2px;}
+  .generalRow{padding:6px 4px;border-top:1px dashed var(--line);transition:background .15s;}
+  .generalRow:hover{background:#221c30;}
+  .genTop{display:flex;gap:8px;align-items:center;}
+  .genIcon{flex:0 0 auto;width:40px;height:40px;background:#0f0c16;border:2px solid var(--line);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transition:width .15s,height .15s;}
+  .generalRow:hover .genIcon{width:52px;height:52px;}
+  .genImg{width:100%;height:100%;object-fit:contain;image-rendering:auto;}
+  .generalRow.on .genIcon{border-color:var(--gold);background:#2a2110;}
+  .genName{flex:1;min-width:0;font-size:.75rem;color:var(--text);}
+  .genName b{font-size:.75rem;}
+  .genShort{color:var(--dim);font-size:.65rem;margin-top:2px;}
+  .genFull{display:none;margin-top:6px;font-size:.68rem;color:var(--dim);line-height:1.35;}
+  .generalRow:hover .genFull{display:block;}
+  .generalRow:hover .genShort{display:none;}
   #fighterSearch{width:100%;box-sizing:border-box;padding:10px 12px;margin:0 0 10px;background:#181420;color:var(--text);border:2px solid var(--line);font-size:.8rem;outline:none;}
   #fighterSearch:focus{border-color:var(--gold);}
   .squadStatus{font-size:.65rem;color:var(--dim);margin:0 0 6px;min-height:1em;}
@@ -378,6 +409,7 @@
     <div class="pickRow">
       <div class="pickCol">
         <div class="pickLabel a">FIGHTER — BLUE CORNER</div>
+        <div class="generalBox a" id="genA"></div>
         <div class="cardList" id="listA"></div>
         <div class="modifierBox" id="modsA"></div>
       </div>
@@ -387,6 +419,7 @@
       </div>
       <div class="pickCol">
         <div class="pickLabel b">FIGHTER — RED CORNER</div>
+        <div class="generalBox b" id="genB"></div>
         <div class="cardList" id="listB"></div>
         <div class="modifierBox" id="modsB"></div>
       </div>
@@ -402,12 +435,12 @@
     <div class="hpPanel">
       <div class="hpBox" id="hpBoxA">
         <div class="hpName" id="hpNameA"></div>
-        <div class="hpBarOuter"><div class="hpBarInner a" id="hpBarA" style="width:100%"></div></div>
+        <div class="hpBarOuter"><div class="hpBarInner a" id="hpBarA" style="width:100%"></div><div class="hpShield" id="hpShieldA" style="left:100%;width:0"></div></div>
         <div class="hpSub" id="hpSubA"></div>
       </div>
       <div class="hpBox right" id="hpBoxB">
         <div class="hpName" id="hpNameB"></div>
-        <div class="hpBarOuter"><div class="hpBarInner b" id="hpBarB" style="width:100%"></div></div>
+        <div class="hpBarOuter"><div class="hpBarInner b" id="hpBarB" style="width:100%"></div><div class="hpShield" id="hpShieldB" style="left:100%;width:0"></div></div>
         <div class="hpSub" id="hpSubB"></div>
       </div>
     </div>
@@ -451,6 +484,7 @@
 </div>
 <div id="hoverTooltip"></div>
 
+<script src="general_modifiers.js"></script>
 <script src="characters.js"></script>
 <script>
 
@@ -476,28 +510,145 @@
   let selA = null, selB = null;
   let selectedModsA = {}, selectedModsB = {};
 
-  // ---- Splash screen: shows every fighter, PLAY enters the menu ----
-  const splashStyle=document.createElement('style');
-  splashStyle.textContent=`  #splash{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% -10%,#241a33 0%,var(--bg-deep) 62%);}
-  #splash .splashPanel{width:min(960px,94vw);max-height:94vh;display:flex;flex-direction:column;align-items:center;gap:10px;}
-  #splash .splashTitle{font-family:'Cinzel',serif;font-weight:800;letter-spacing:4px;font-size:2.6rem;margin:0;background:linear-gradient(90deg,var(--gold),#fff2cc,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  #splash .splashSub{color:var(--dim);font-size:.75rem;letter-spacing:2px;text-transform:uppercase;}
-  #splash .splashGrid{width:100%;flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:6px;border:2px solid var(--line);background:#120f1a;}
-  #splash .splashCard{background:#181420;border:2px solid var(--line);padding:10px 6px;text-align:center;}
-  #splash .sEmoji{font-size:2rem;line-height:1.2;}
-  #splash .sName{font-size:.7rem;color:var(--text);margin-top:4px;}
-  #splash #splashPlay{font-family:'Press Start 2P',monospace;font-size:1rem;background:var(--gold);color:#14101c;border:0;padding:14px 40px;cursor:pointer;box-shadow:4px 4px 0 #000;}
-  #splash #splashPlay:hover{background:var(--gold-bright);}
-`;
-  document.head.appendChild(splashStyle);
-  const splash=document.createElement('div'); splash.id='splash';
-  const splashKeys=Object.keys(DEFS).filter(k=>DEFS[k].name && !k.startsWith('squad'));
-  splash.innerHTML='<div class="splashPanel"><h1 class="splashTitle">GUY FIGHTS</h1>'+
-    '<div class="splashSub">'+splashKeys.length+' fighters</div>'+
-    '<div class="splashGrid">'+splashKeys.map(k=>`<div class="splashCard"><div class="sEmoji">${DEFS[k].emoji}</div><div class="sName">${DEFS[k].name}</div></div>`).join('')+'</div>'+
-    '<button id="splashPlay">PLAY</button></div>';
-  document.body.appendChild(splash);
-  splash.querySelector('#splashPlay').addEventListener('click',()=>{ splash.style.display='none'; });
+  // ---- Intro: a blue dot draws an infinity sign, morphs into "!?", then the game loads ----
+(function(){
+  const cv=document.createElement('canvas');
+  cv.id='intro';
+  cv.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:60;background:#0c0912;';
+  document.body.appendChild(cv);
+  const cx=cv.getContext('2d');
+  let W=1,H=1,DPR=1;
+  function resize(){
+    DPR=Math.min(2,window.devicePixelRatio||1); W=innerWidth; H=innerHeight;
+    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+    cx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  resize(); addEventListener('resize',resize);
+
+  const BLUE='#4da6ff';
+  const DOT_R=14, BAR_H=92, BAR_R=10;
+  const clamp01=v=>Math.max(0,Math.min(1,v));
+  const outElastic=t=>{ t=clamp01(t); if(t===0||t===1) return t; const c=(2*Math.PI)/3; return Math.pow(2,-10*t)*Math.sin((t*10-0.75)*c)+1; };
+  const easeInOut=t=>{ t=clamp01(t); return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; };
+
+  // timeline (seconds)
+  const T={
+    appear:0.5,        // dot pops in at the center
+    drawEnd:2.7,       // infinity sign finished (ends back at the center)
+    ghostLife:0.33,    // each dot-sized afterimage fades out after 0.33s
+    shrinkEnd:3.2,     // dot settles back to a small dot
+    barEnd:3.7,        // "!" bar grows
+    dotEnd:3.95,       // "!" dot drops in
+    splitStart:4.4,
+    splitEnd:5.0,
+    fadeStart:5.7,
+    fadeEnd:6.3
+  };
+
+  // Lemniscate (infinity sign). Starts and ends at the center point.
+  function curve(theta){
+    const A=Math.min(W,H)*0.2, cxm=W/2, cym=H/2;
+    const s=Math.sin(theta), c=Math.cos(theta), d=1+s*s;
+    return {x:cxm+A*c/d, y:cym+A*s*c/d};
+  }
+  function roundRect(x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    cx.beginPath();
+    cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r);
+    cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath();
+  }
+  function drawBang(x,y,barH,dotR){
+    cx.save(); cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
+    if(barH>0.5){ roundRect(x-9, y-barH/2-dotR*0.8, 18, barH, BAR_R); cx.fill(); }
+    if(dotR>0.3){ cx.beginPath(); cx.arc(x, y+barH/2+dotR*1.6, dotR, 0, Math.PI*2); cx.fill(); }
+    cx.restore();
+  }
+
+  let start=0, last=0, lead=null;
+  const ghosts=[];   // dot-sized afterimages: {x,y,r,t}
+
+  function frame(now){
+    const t=(now-start)/1000;
+    const dt=Math.min(0.05,(now-last)/1000); last=now;
+    const cxm=W/2, cym=H/2;
+
+    cx.fillStyle='#0c0912'; cx.fillRect(0,0,W,H);
+    const g=cx.createRadialGradient(cxm,cym,0,cxm,cym,Math.max(W,H)*0.5);
+    g.addColorStop(0,'rgba(77,166,255,0.10)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    cx.fillStyle=g; cx.fillRect(0,0,W,H);
+
+    if(!lead) lead={x:cxm,y:cym};
+
+    // where the dot should be: draw the infinity sign, then glide back to the center
+    let target, r;
+    if(t<T.appear){
+      target={x:cxm,y:cym};
+      r=DOT_R*outElastic(t/T.appear)+0.001;
+    } else if(t<T.drawEnd){
+      const p=(t-T.appear)/(T.drawEnd-T.appear);
+      target=curve(Math.PI/2 + p*Math.PI*2);     // starts and ends at the center
+      r=DOT_R;
+    } else {
+      target={x:cxm,y:cym};
+      r=DOT_R - (DOT_R-10)*easeInOut((t-T.drawEnd)/(T.shrinkEnd-T.drawEnd));
+    }
+
+    // the dot follows its target with a smooth lag, so it never jumps
+    const k=1-Math.exp(-dt*(t<T.drawEnd?16:10));
+    lead.x+=(target.x-lead.x)*k; lead.y+=(target.y-lead.y)*k;
+
+    // dot-sized afterimages, dropped while the dot is moving
+    if(t>=T.appear && t<T.shrinkEnd){
+      const last=ghosts[ghosts.length-1];
+      if(!last || Math.hypot(last.x-lead.x,last.y-lead.y)>4) ghosts.push({x:lead.x,y:lead.y,r,t});
+    }
+    for(let i=ghosts.length-1;i>=0;i--) if(t-ghosts[i].t>T.ghostLife) ghosts.splice(i,1);
+    for(const gh of ghosts){
+      const a=clamp01(1-(t-gh.t)/T.ghostLife);
+      cx.save(); cx.globalAlpha=a*0.5; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=12;
+      cx.beginPath(); cx.arc(gh.x,gh.y,gh.r,0,Math.PI*2); cx.fill(); cx.restore();
+    }
+
+    // the dot
+    if(t<T.shrinkEnd){
+      cx.save(); cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=28;
+      cx.beginPath(); cx.arc(lead.x,lead.y,r,0,Math.PI*2); cx.fill(); cx.restore();
+    }
+
+    // the dot becomes "!": the bar grows, then the dot below drops in
+    if(t>=T.shrinkEnd){
+      const barH = BAR_H*outElastic((t-T.shrinkEnd)/(T.barEnd-T.shrinkEnd));
+      const dotR = 10*outElastic((t-T.barEnd)/(T.dotEnd-T.barEnd));
+      if(t>=T.splitStart){
+        const p=easeInOut((t-T.splitStart)/(T.splitEnd-T.splitStart));
+        const sq=1+0.25*Math.sin(Math.PI*p);     // a little liquid stretch while splitting
+        drawBang(cxm-90*p, cym, barH*sq, dotR);
+        cx.save(); cx.globalAlpha=p; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
+        cx.font='96px "Press Start 2P", monospace'; cx.textAlign='center'; cx.textBaseline='middle';
+        cx.fillText('?', cxm+90*p, cym+4);
+        cx.restore();
+      } else {
+        drawBang(cxm, cym, barH, dotR);
+      }
+    }
+
+    if(t>=T.fadeStart){
+      cv.style.opacity = String(1-easeInOut((t-T.fadeStart)/(T.fadeEnd-T.fadeStart)));
+    }
+    if(t<T.fadeEnd) requestAnimationFrame(frame);
+    else cv.remove();
+  }
+
+  function run(){
+    start=performance.now(); last=start;
+    requestAnimationFrame(frame);
+  }
+  const begin=()=>{
+    const fonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    Promise.race([fonts, new Promise(r=>setTimeout(r,800))]).then(run);
+  };
+  if(document.readyState==='complete') begin(); else addEventListener('load', begin);
+})();
   const SET_ROWS=[['impact','💥 Impact frames','At 150+ damage the game freezes 0.5s with a black & white burst on the target'],
     ['speedVar','🏃 Differ movement speed','On contact / bounce, fighters get up to 25% faster or 10% slower'],
     ['cine','🎬 Cinematic effects','Zoom punches, slow-mo KOs, letterbox bars and a vignette'],
@@ -664,6 +815,45 @@
       panel.appendChild(label);
     });
   }
+
+  // ---- General modifiers (team-wide). Data comes from GENERAL_MODS in characters.js ----
+  const selectedGeneralA = {}, selectedGeneralB = {};
+  function renderGeneralMods(side){
+    const box = document.getElementById(side==='A' ? 'genA' : 'genB');
+    const selected = side==='A' ? selectedGeneralA : selectedGeneralB;
+    const mods = (typeof GENERAL_MODS !== 'undefined') ? GENERAL_MODS : [];
+    box.innerHTML = '<button class="genToggle" type="button">⚙️ GENERAL MODIFIERS <span class="genArrow">▾</span></button><div class="genList" hidden></div>';
+    const toggle = box.querySelector('.genToggle');
+    const list = box.querySelector('.genList');
+    toggle.addEventListener('click', ()=>{
+      const open = list.hidden;
+      list.hidden = !open;
+      box.classList.toggle('open', open);
+      toggle.querySelector('.genArrow').textContent = open ? '▴' : '▾';
+    });
+    if(!mods.length){
+      list.innerHTML = '<div class="generalEmpty">none yet</div>';
+      return;
+    }
+    mods.forEach(mod=>{
+      const row = document.createElement('div');
+      row.className = 'generalRow' + (selected[mod.key] ? ' on' : '');
+      const icon = mod.img
+        ? `<img src="${mod.img}" alt="" class="genImg">`
+        : (mod.emoji || '❔');
+      row.innerHTML =
+        `<div class="genTop"><button class="genIcon" type="button">${icon}</button>`+
+        `<div class="genName"><b>${mod.name}</b><div class="genShort">${mod.short||''}</div></div></div>`+
+        `<div class="genFull">${mod.desc||''}</div>`;
+      row.querySelector('.genIcon').addEventListener('click', ()=>{
+        selected[mod.key] = !selected[mod.key];
+        row.classList.toggle('on', !!selected[mod.key]);
+      });
+      list.appendChild(row);
+    });
+  }
+  renderGeneralMods('A');
+  renderGeneralMods('B');
 
   function buildCard(key, side){
     const d = DEFS[key];
@@ -940,6 +1130,7 @@
     for(let i=0;i<count;i++){
       const unit=makeUnit(defKey,teamId,x+rand(-30,30),y+rand(-100,100),modifiers);
       team.units.push(unit); leaders.push(unit);
+      if(defKey!=='henchman') applyGeneralSpawn(unit);
       spawnCompanionsFor(unit, team, unit.x, unit.y);
     }
     const leader = leaders[0];
@@ -1130,7 +1321,7 @@
     const nx = dx/len, ny = dy/len;
     const KB = 250*(forceMult||1);
     const scytheResist=defender.defKey==='scythe'&&defender.scytheDamageBuffT>0?0.8:1;
-    const defenderScale = angryKnockbackFactor(defender)*scytheResist;
+    const defenderScale = angryKnockbackFactor(defender)*scytheResist*genKbResist(defender);
     defender.vx = nx*KB*defenderScale; defender.vy = ny*KB*defenderScale;
     attacker.vx -= nx*70; attacker.vy -= ny*70;
   }
@@ -3088,6 +3279,21 @@
       }
       if(u.slowed && !(u.slowT>0)){ u.slowed=false; u.slowF=undefined; u.vx=Math.cos(u.slowAng)*u.slowBase; u.vy=Math.sin(u.slowAng)*u.slowBase; }
       if(u.naughtyT>0) u.naughtyT-=dt;
+      // general modifiers status: poison, fury, adrenaline
+      if(u.alive && u.poisonTicks>0){
+        u.poisonTickT=(u.poisonTickT||POISON_TICK)-dt;
+        if(u.poisonTickT<=0){
+          u.poisonTickT+=POISON_TICK; u.poisonTicks--;
+          inPoisonTick=true;
+          try{ dealDamage(u.poisonSrc,u,u.poisonDmg,null,true); } finally{ inPoisonTick=false; }
+        }
+      }
+      if(u.furyTimers && u.furyTimers.length) u.furyTimers=u.furyTimers.map(t=>t-dt).filter(t=>t>0);
+      if(u.alive && !u.adrenUsed && genOn(u,'adrenaline') && u.hp/u.maxhp<0.2){
+        u.adrenUsed=true; u.adrenT=8; addFloater(u.x,u.y-u.r-18,'ADRENALINE!','#ff7a7a');
+      }
+      if(u.adrenT>0) u.adrenT-=dt;
+if(u.chaosT>0) u.chaosT-=dt;
       if(u.burnT>0){ u.burnT-=dt; u.burnTick=(u.burnTick||0)-dt; if(Math.random()<dt*14&&particles.length<700) particles.push({x:u.x+(Math.random()-0.5)*u.r,y:u.y,vx:0,vy:-60,life:0.4,max:0.4,size:9,color:'#ff7a3a',g:0}); if(u.burnTick<=0){ u.burnTick=0.5; dealDamage(u.burnOwner,u,10,null,true); } }
       if(u.psnT>0){ u.psnT-=dt; u.psnTick=(u.psnTick||0)-dt; if(Math.random()<dt*10&&particles.length<700) particles.push({x:u.x+(Math.random()-0.5)*u.r,y:u.y,vx:0,vy:-40,life:0.4,max:0.4,size:8,color:'#8be04a',g:0}); if(u.psnTick<=0){ u.psnTick=0.5; dealDamage(u.psnOwner,u,(u.psnStacks||1)*3,null,true); } if(u.psnT<=0) u.psnStacks=0; }
       if(u.fearT>0){ u.fearT-=dt; if(u.fearFrom){ const sp=Math.hypot(u.vx,u.vy)||150, a=Math.atan2(u.y-u.fearFrom.y,u.x-u.fearFrom.x); u.vx=Math.cos(a)*sp; u.vy=Math.sin(a)*sp; } }
@@ -3253,12 +3459,59 @@
   let dodgeSource=null, parryBypass=false;
   let meleeClock=0, meleeDuel=null;
   function meleeReach(a,b){ const R=DEFS[a.defKey]&&DEFS[a.defKey].meleeRange; return !!R && dist(a,b)-(a.r+b.r)<=R; }
+  // ---- General modifiers: team-wide effects ----
+  let inPoisonTick=false, hitIsRanged=false;
+  const POISON_TICK=0.2, POISON_TICKS=5, POISON_MELEE=15, POISON_RANGED=10;
+  function genOn(u,key){ if(!u || u.defKey==='henchman') return false; const s=u.team==='A'?selectedGeneralA:selectedGeneralB; return !!s[key]; }
+  function furyStacks(u){ return (u && u.furyTimers) ? u.furyTimers.length : 0; }
+  function genDamageMult(attacker){
+  let m=1;
+  if(genOn(attacker,'suddenDeath')) m*=1.5;
+  if(genOn(attacker,'lastStand') && attacker.hp/attacker.maxhp<0.1) m*=1.5;
+  return m;
+  }
+  function genDmgTakenMult(u){ return Math.max(0, 1-0.025*furyStacks(u)); }
+  function genKbResist(u){ const base=Math.max(0, 1-0.025*furyStacks(u)); return (u.chaosT>0)?base*2:base; }
+  function genMoveMult(u){
+  let m=(u.adrenT>0?1.25:1)*(1+0.0333*furyStacks(u));
+  if(u.chaosT>0) m*=1.75;
+  if(genOn(u,'blessing5') && u.shield>0) m*=1.25;
+  return m;
+}
+  function genAttackSpeedMult(u){ return u.adrenT>0?1.5:1; }
+  function luckChance(u,base){ return genOn(u,'lucky') ? base+(u.defKey==='poker'?0.05:0.175) : base; }
+  function applyGeneralSpawn(u){
+  if(genOn(u,'suddenDeath')){ u.maxhp=Math.round(u.maxhp*0.15); u.hp=u.maxhp; }
+  const bless = genOn(u,'blessing5')?250 : genOn(u,'blessing4')?250 : genOn(u,'blessing3')?250 : genOn(u,'blessing2')?175 : genOn(u,'blessing1')?100 : 0;
+  if(bless){ u.shield=(u.shield||0)+bless; u.blessMax=bless; }
+  if(genOn(u,'chaotic')) u.chaosT=4;
+}
+// Blessing IV / V: every X damage taken rolls a chance to heal
+const BLESS_HEAL = { blessing4:{threshold:250, chance:0.33, heal:40}, blessing5:{threshold:200, chance:0.44, heal:75} };
+function blessingOnDamage(u,dmg){
+  if(!u || !u.alive || dmg<=0) return;
+  for(const key in BLESS_HEAL){
+    if(!genOn(u,key)) continue;
+    const b=BLESS_HEAL[key];
+    u.blessAcc=u.blessAcc||{};
+    u.blessAcc[key]=(u.blessAcc[key]||0)+dmg;
+    while(u.blessAcc[key]>=b.threshold){
+      u.blessAcc[key]-=b.threshold;
+      if(Math.random()<b.chance && u.hp>0){
+        const before=u.hp;
+        u.hp=Math.min(u.maxhp,u.hp+b.heal);
+        const got=Math.round(u.hp-before);
+        if(got>0) addFloater(u.x,u.y-u.r-18,`+${got} HEAL`,'#8fffb0');
+      }
+    }
+  }
+  }
   function dealDamage(attacker,target,dmg,knockDir,noKnockback,forceMult,batch){
-    if(attacker && target && attacker!==target && attacker.team!==target.team && meleeReach(attacker,target) && meleeReach(target,attacker)){
+    if(attacker && target && attacker!==target && attacker.team!==target.team && !inPoisonTick && meleeReach(attacker,target) && meleeReach(target,attacker)){
       if(!meleeDuel || meleeDuel.until<=meleeClock){ meleeDuel={winner:Math.random()<0.5?'A':'B', until:meleeClock+0.5}; }
       if(attacker.team!==meleeDuel.winner) return false;
     }
-    if(!wallBypass && attacker && target && attacker.team!==target.team && !dodgeSource){
+    if(!wallBypass && !inPoisonTick && attacker && target && attacker.team!==target.team && !dodgeSource){
       const blockWall=segmentBlockedByWall(attacker,target,target.team);
       if(blockWall){
         blockWall.durability--;
@@ -3325,7 +3578,10 @@
       dmg=oldGuyAbsorb(target,dmg);
       if(dmg<=0) return false;
     }
+    if(attacker && attacker!==target && attacker.team!==target.team && !inPoisonTick) dmg*=genDamageMult(attacker);
+    dmg*=genDmgTakenMult(target);
     if(target.naughtyT>0) dmg*=1.25;
+    blessingOnDamage(target,dmg);
     let shieldDamage=0;
     if(target.shield>0){ const ab=Math.min(target.shield,dmg); target.shield-=ab; dmg-=ab; shieldDamage=ab; ring(target.x,target.y,'#ffffff',target.r+20); if(dmg<=0.01){ countPocketeerDamage(target,shieldDamage); return false; } }
     const before=target.hp, dt0=target.damageTaken||0, wasAlive=target.alive;
@@ -3334,6 +3590,10 @@
     const damageTaken=Math.max(dealt,(target.damageTaken||0)-dt0);
     if(target.defKey==='megaphone' && damageTaken>0) megaphoneYell(target,damageTaken);
     countPocketeerDamage(target,shieldDamage+damageTaken);
+    if(r && dealt>0 && attacker && attacker.team!==target.team && !inPoisonTick){
+      if(genOn(attacker,'parasma')){ target.poisonTicks=POISON_TICKS; target.poisonSrc=attacker; target.poisonDmg=hitIsRanged?POISON_RANGED:POISON_MELEE; }
+      if(genOn(attacker,'fury')){ (attacker.furyTimers=attacker.furyTimers||[]).push(5); }
+    }
     if(attacker&&attacker.defKey==='scythe'&&dealt>0){
       attacker.scytheDamageProgress=(attacker.scytheDamageProgress||0)+dealt;
       if(attacker.scytheDamageProgress>=50){
@@ -3568,6 +3828,7 @@
         if(unit.defKey==='drunk' && unit.frenzy) moveFactor *= 1.33;
         if(unit.speedBoostTimer>0 && unit.speedBoostAmount) moveFactor *= 1+unit.speedBoostAmount;
         if(unit.speedMultiplier) moveFactor *= unit.speedMultiplier;
+        moveFactor *= genMoveMult(unit);
         if(unit.poopSlowT>0) moveFactor *= DEFS.oldguy.poopSlow;
         if(unit.defKey==='parry' && hasModifier(unit,'trickshot')) moveFactor *= 1.25;
         if(unit.paintSlowMult && unit.paintSlowMult<1) moveFactor *= unit.paintSlowMult;
@@ -3694,7 +3955,7 @@
             }
           }
         }
-        const cooldownDt=dt*(unit.attackSpeedMultiplier||1);
+        const cooldownDt=dt*(unit.attackSpeedMultiplier||1)*genAttackSpeedMult(unit);
         unit.cdBlacksmith -= cooldownDt;
         unit.cdAngry -= cooldownDt;
         unit.cdHenchman -= cooldownDt;
@@ -4033,7 +4294,7 @@
               unit.cdPk=1; let cs=[]; const used=new Set();
               while(cs.length<4){ const c={r:2+Math.floor(Math.random()*13),s:Math.floor(Math.random()*4)}, k=c.r*4+c.s; if(!used.has(k)){ used.add(k); cs.push(c); } }
               if(Math.random()<0.003){ const hi=Math.random()<0.5?10:11, su=Math.floor(Math.random()*4); cs=[0,1,2,3].map(i=>({r:hi+i,s:su})); }
-              else if(m('lucky') && unit.luckyNext && Math.random()<0.075) cs=forgeHand();
+              else if(m('lucky') && unit.luckyNext && Math.random()<luckChance(unit,0.075)) cs=forgeHand();
               unit.luckyNext=false;
               const hand=evalHand(cs)[0], cnt={}; cs.forEach(c=>cnt[c.r]=(cnt[c.r]||0)+1);
               let mult=cs.map(()=>1), crit=false, fx=null, label=hand;
@@ -4041,8 +4302,8 @@
               if(hand==='PAIR') mult=cs.map(c=>cnt[c.r]===2?2.5:1.75);
               else if(hand==='TWO PAIR') mult=cs.map(()=>3);
               else if(hand==='THREE OF A KIND'){ mult=cs.map(()=>5); fx=(o,u)=>setSlow(u,1); }
-              else if(hand==='FOUR OF A KIND'){ crit=Math.random()<0.1; mult=cs.map(()=>crit?10:7.5); fx=(o,u)=>setSlow(u,1.25); }
-              else if(hand==='STRAIGHT FLUSH'){ crit=Math.random()<0.25; mult=cs.map(()=>10); fx=(o,u)=>applyStun(u,0.75); }
+              else if(hand==='FOUR OF A KIND'){ crit=Math.random()<luckChance(unit,0.1); mult=cs.map(()=>crit?10:7.5); fx=(o,u)=>setSlow(u,1.25); }
+              else if(hand==='STRAIGHT FLUSH'){ crit=Math.random()<luckChance(unit,0.25); mult=cs.map(()=>10); fx=(o,u)=>applyStun(u,0.75); }
               else if(hand==='ROYAL FLUSH'){ fx=(o,u)=>{ if(!once.done){ once.done=true; royalBlast(o,u.x,u.y); } }; }
               const oneShot=hand==='ROYAL FLUSH'||(hand==='STRAIGHT FLUSH'&&crit);
               if(crit) label+=' CRIT!';
@@ -5098,7 +5359,7 @@
             hit=true; break;
           }
           dodgeSource=p;
-          const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, p.noKnockback || p.kind === 'rook' || isTinyFinger || isCar ? true : undefined);
+hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, p.noKnockback || p.kind === 'rook' || isTinyFinger || isCar ? true : undefined); hitIsRanged=false;
           dodgeSource=null;
           if(p.kind === 'rook'){
             applyKnockback(p.owner, u, {x:p.vx,y:p.vy});
@@ -5681,11 +5942,14 @@
 
         // mini hp bar
         const barW = u.r*2.2;
-        const hpFrac = clamp(u.hp/u.maxhp,0,1);
+        const barDenom = Math.max(u.maxhp + (u.blessMax||0), u.hp + (u.shield||0), 1);
+        const hpW = barW*clamp(u.hp/barDenom,0,1);
+        const shW = barW*clamp((u.shield||0)/barDenom,0,1-hpW/barW);
         ctx.fillStyle='#241d30';
         ctx.fillRect(u.x-barW/2, u.y-u.r-10, barW, 5);
-        ctx.fillStyle = team.id==='A' ? getCss('--teamA') : getCss('--teamB');
-        ctx.fillRect(u.x-barW/2, u.y-u.r-10, barW*hpFrac, 5);
+        ctx.fillStyle = team.id==='A' ? '#2f6fc4' : '#e0474c';
+        ctx.fillRect(u.x-barW/2, u.y-u.r-10, hpW, 5);
+        if(shW>0){ ctx.fillStyle = '#4da6ff'; ctx.fillRect(u.x-barW/2+hpW, u.y-u.r-10, shW, 5); }
 
         if(u.defKey==='blacksmith' && u.forgeBonus>0){
           ctx.font = '11px Rubik, sans-serif';
@@ -5773,8 +6037,18 @@
 
     document.getElementById('hpNameA').innerHTML = `${dA.emoji} ${dA.name}`;
     document.getElementById('hpNameB').innerHTML = `${dB.name} ${dB.emoji}`;
-    document.getElementById('hpBarA').style.width = clamp(sumA.hp/sumA.max*100,0,100)+'%';
-    document.getElementById('hpBarB').style.width = clamp(sumB.hp/sumB.max*100,0,100)+'%';
+    const topBar = (team, sum, barId, shieldId) => {
+      const denom = Math.max(sum.max + team.units.reduce((s,u)=>s+(u.blessMax||0),0), 1);
+      const hpPct = clamp(sum.hp/denom*100, 0, 100);
+      const shield = aliveUnits(team).reduce((s,u)=>s+(u.shield||0),0);
+      const shPct = clamp(shield/denom*100, 0, 100-hpPct);
+      document.getElementById(barId).style.width = hpPct+'%';
+      const seg = document.getElementById(shieldId);
+      seg.style.left = hpPct+'%';
+      seg.style.width = shPct+'%';
+    };
+    topBar(teams[0], sumA, 'hpBarA', 'hpShieldA');
+    topBar(teams[1], sumB, 'hpBarB', 'hpShieldB');
 
     document.getElementById('hpSubA').textContent = sumA.sub;
     document.getElementById('hpSubB').textContent = sumB.sub;
