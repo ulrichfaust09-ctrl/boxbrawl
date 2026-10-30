@@ -445,8 +445,7 @@
       </div>
     </div>
     <div id="modeTimer" style="display:none;text-align:center;color:var(--gold-bright);font-family:'Space Mono',monospace;font-weight:700;letter-spacing:3px;font-size:1.1rem;text-shadow:0 0 12px rgba(232,176,75,.5);margin:-4px 0 8px"></div>
-    <div id="speedBar">Speed:
-      <button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button>
+    <div id="speedBar">Speed: <input type="range" id="speedSlider" min="0.5" max="10" step="0.5" value="1" style="width:160px;vertical-align:middle;"> <span id="speedVal">1×</span>
     </div>
     <div id="canvasWrap">
       <div class="ringRope top"></div>
@@ -510,130 +509,175 @@
   let selA = null, selB = null;
   let selectedModsA = {}, selectedModsB = {};
 
-  // ---- Intro: a blue dot draws an infinity sign, morphs into "!?", then the game loads ----
+  // ---- Intro: dot -> infinity -> "!?" -> solid oval -> galaxy -> zoom to Earth -> solar system -> Sun -> menu ----
 (function(){
   const cv=document.createElement('canvas');
   cv.id='intro';
-  cv.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:60;background:#0c0912;';
+  cv.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:60;background:#000;';
   document.body.appendChild(cv);
   const cx=cv.getContext('2d');
-  let W=1,H=1,DPR=1;
-  function resize(){
-    DPR=Math.min(2,window.devicePixelRatio||1); W=innerWidth; H=innerHeight;
-    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
-    cx.setTransform(DPR,0,0,DPR,0,0);
-  }
-  resize(); addEventListener('resize',resize);
+  let W=1,H=1,M=1,DPR=1;
+  let stars=[];
 
-  const BLUE='#4da6ff';
-  const DOT_R=14, BAR_H=92, BAR_R=10;
+  const rnd=(s)=>{ const x=Math.sin(s*127.1+311.7)*43758.5453; return x-Math.floor(x); };
   const clamp01=v=>Math.max(0,Math.min(1,v));
+  const lerp=(a,b,k)=>a+(b-a)*k;
   const outElastic=t=>{ t=clamp01(t); if(t===0||t===1) return t; const c=(2*Math.PI)/3; return Math.pow(2,-10*t)*Math.sin((t*10-0.75)*c)+1; };
   const easeInOut=t=>{ t=clamp01(t); return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; };
+  const easeIn=t=>{ t=clamp01(t); return t*t*t; };
+  const easeOut=t=>{ t=clamp01(t); return 1-Math.pow(1-t,3); };
+
+  function resize(){
+    DPR=Math.min(2,window.devicePixelRatio||1); W=innerWidth; H=innerHeight; M=Math.min(W,H);
+    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+    cx.setTransform(DPR,0,0,DPR,0,0);
+    stars=Array.from({length:150},(_,i)=>({x:rnd(i+1)*W, y:rnd(i+101)*H, s:0.6+rnd(i+201)*1.8, ph:rnd(i+301)*6.28}));
+  }
+
+  const BLUE='#4da6ff';
+  const LEAD_R=28, SEED_R=20, STEM_W=18, STEM_H=92, GAP=22;
+  const TILT=-Math.PI/4;
 
   // timeline (seconds)
   const T={
-    appear:0.5,        // dot pops in at the center
-    drawEnd:2.7,       // infinity sign finished (ends back at the center)
-    ghostLife:0.33,    // each dot-sized afterimage fades out after 0.33s
-    shrinkEnd:3.2,     // dot settles back to a small dot
-    barEnd:3.7,        // "!" bar grows
-    dotEnd:3.95,       // "!" dot drops in
-    splitStart:4.4,
-    splitEnd:5.0,
-    fadeStart:5.7,
-    fadeEnd:6.3
+    appear:0.5, drawEnd:1.7, shrinkEnd:2.2, stemEnd:2.9,
+    tiltEnd:3.4, hookEnd:4.0, splitEnd:4.6,
+    fadeStart:5.6, fadeEnd:6.2
   };
 
-  // Lemniscate (infinity sign). Starts and ends at the center point.
-  function curve(theta){
-    const A=Math.min(W,H)*0.2, cxm=W/2, cym=H/2;
-    const s=Math.sin(theta), c=Math.cos(theta), d=1+s*s;
-    return {x:cxm+A*c/d, y:cym+A*s*c/d};
+  // ---- background: black with a few stars ----
+  function drawBackground(t){
+    cx.fillStyle='#000000'; cx.fillRect(0,0,W,H);
   }
+
+  // ---- "!" and "?" ----
   function roundRect(x,y,w,h,r){
     r=Math.min(r,w/2,h/2);
     cx.beginPath();
     cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r);
     cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath();
   }
-  function drawBang(x,y,barH,dotR){
+  // "?" hook growing out of the dot at angle rot (grow 0..1 scales it out from the dot)
+  function drawHook(px,py,rot,grow){
+    if(grow<=0) return;
+    cx.save(); cx.translate(px,py); cx.rotate(rot); cx.scale(grow,grow);
+    cx.strokeStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
+    cx.lineWidth=STEM_W; cx.lineCap='round';
+    cx.beginPath(); cx.arc(0,-46,18,Math.PI,Math.PI*2.5,false); cx.lineTo(0,-16); cx.stroke();
+    cx.restore();
+  }
+  function drawDot(x,y){
     cx.save(); cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
-    if(barH>0.5){ roundRect(x-9, y-barH/2-dotR*0.8, 18, barH, BAR_R); cx.fill(); }
-    if(dotR>0.3){ cx.beginPath(); cx.arc(x, y+barH/2+dotR*1.6, dotR, 0, Math.PI*2); cx.fill(); }
+    cx.beginPath(); cx.arc(x,y,SEED_R,0,Math.PI*2); cx.fill(); cx.restore();
+  }
+  // "!": seed dot at (px,py); the bar sits above it, `gap` apart
+  function drawBang(px,py,rot,stemH,alpha,sc,gap,showDot){
+    if(alpha<=0||sc<=0) return;
+    cx.save(); cx.translate(px,py); cx.rotate(rot); cx.scale(sc,sc); cx.globalAlpha=alpha;
+    cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
+    const bottom=-SEED_R*0.6-(gap||0);
+    if(stemH>0.5){ roundRect(-STEM_W/2,bottom-stemH,STEM_W,stemH,STEM_W/2); cx.fill(); }
+    if(showDot!==false){ cx.beginPath(); cx.arc(0,0,SEED_R,0,Math.PI*2); cx.fill(); }
+    cx.restore();
+  }
+  // "?": hook + stem + dot, the hook sits `gap` above the dot
+  function drawQuestion(px,py,rot,alpha,sc,gap,showDot){
+    if(alpha<=0||sc<=0) return;
+    const g=gap||0;
+    cx.save(); cx.translate(px,py); cx.rotate(rot); cx.scale(sc,sc); cx.globalAlpha=alpha;
+    cx.strokeStyle=BLUE; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
+    cx.lineWidth=STEM_W; cx.lineCap='round';
+    cx.beginPath(); cx.arc(0,-46-g,18,Math.PI,Math.PI*2.5,false); cx.lineTo(0,-16-g); cx.stroke();
+    if(showDot!==false){ cx.beginPath(); cx.arc(0,0,SEED_R,0,Math.PI*2); cx.fill(); }
     cx.restore();
   }
 
+  // ---- Sun (flat style) ----
+  function drawSun(cxm,cym,R,alpha){
+    if(alpha<=0) return;
+    cx.save(); cx.globalAlpha=alpha;
+    cx.fillStyle='#ffd400'; cx.beginPath(); cx.arc(cxm,cym,R,0,Math.PI*2); cx.fill();
+    cx.save(); cx.beginPath(); cx.arc(cxm,cym,R*0.76,0,Math.PI*2); cx.clip();
+    cx.fillStyle='#ffffff'; cx.fillRect(cxm-R,cym-R,R*2,R*2);
+    cx.fillStyle='#fff5c8'; cx.beginPath(); cx.arc(cxm-R*0.12,cym+R*0.1,R*0.7,0,Math.PI*2); cx.fill();
+    cx.restore();
+    cx.restore();
+  }
+
+  // ---- first infinity sign ----
+  function curve(theta){
+    const A=M*0.2, cxm=W/2, cym=H/2;
+    const s=Math.sin(theta), c=Math.cos(theta), d=1+s*s;
+    return {x:cxm+A*c/d, y:cym+A*s*c/d};
+  }
+
   let start=0, last=0, lead=null;
-  const ghosts=[];   // dot-sized afterimages: {x,y,r,t}
+  const ghosts=[];
 
   function frame(now){
     const t=(now-start)/1000;
     const dt=Math.min(0.05,(now-last)/1000); last=now;
     const cxm=W/2, cym=H/2;
-
-    cx.fillStyle='#0c0912'; cx.fillRect(0,0,W,H);
-    const g=cx.createRadialGradient(cxm,cym,0,cxm,cym,Math.max(W,H)*0.5);
-    g.addColorStop(0,'rgba(77,166,255,0.10)'); g.addColorStop(1,'rgba(0,0,0,0)');
-    cx.fillStyle=g; cx.fillRect(0,0,W,H);
-
+    drawBackground(t);
     if(!lead) lead={x:cxm,y:cym};
 
-    // where the dot should be: draw the infinity sign, then glide back to the center
-    let target, r;
-    if(t<T.appear){
-      target={x:cxm,y:cym};
-      r=DOT_R*outElastic(t/T.appear)+0.001;
-    } else if(t<T.drawEnd){
-      const p=(t-T.appear)/(T.drawEnd-T.appear);
-      target=curve(Math.PI/2 + p*Math.PI*2);     // starts and ends at the center
-      r=DOT_R;
-    } else {
-      target={x:cxm,y:cym};
-      r=DOT_R - (DOT_R-10)*easeInOut((t-T.drawEnd)/(T.shrinkEnd-T.drawEnd));
-    }
-
-    // the dot follows its target with a smooth lag, so it never jumps
-    const k=1-Math.exp(-dt*(t<T.drawEnd?16:10));
-    lead.x+=(target.x-lead.x)*k; lead.y+=(target.y-lead.y)*k;
-
-    // dot-sized afterimages, dropped while the dot is moving
-    if(t>=T.appear && t<T.shrinkEnd){
-      const last=ghosts[ghosts.length-1];
-      if(!last || Math.hypot(last.x-lead.x,last.y-lead.y)>4) ghosts.push({x:lead.x,y:lead.y,r,t});
-    }
-    for(let i=ghosts.length-1;i>=0;i--) if(t-ghosts[i].t>T.ghostLife) ghosts.splice(i,1);
-    for(const gh of ghosts){
-      const a=clamp01(1-(t-gh.t)/T.ghostLife);
-      cx.save(); cx.globalAlpha=a*0.5; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=12;
-      cx.beginPath(); cx.arc(gh.x,gh.y,gh.r,0,Math.PI*2); cx.fill(); cx.restore();
-    }
-
-    // the dot
-    if(t<T.shrinkEnd){
-      cx.save(); cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=28;
-      cx.beginPath(); cx.arc(lead.x,lead.y,r,0,Math.PI*2); cx.fill(); cx.restore();
-    }
-
-    // the dot becomes "!": the bar grows, then the dot below drops in
-    if(t>=T.shrinkEnd){
-      const barH = BAR_H*outElastic((t-T.shrinkEnd)/(T.barEnd-T.shrinkEnd));
-      const dotR = 10*outElastic((t-T.barEnd)/(T.dotEnd-T.barEnd));
-      if(t>=T.splitStart){
-        const p=easeInOut((t-T.splitStart)/(T.splitEnd-T.splitStart));
-        const sq=1+0.25*Math.sin(Math.PI*p);     // a little liquid stretch while splitting
-        drawBang(cxm-90*p, cym, barH*sq, dotR);
-        cx.save(); cx.globalAlpha=p; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
-        cx.font='96px "Press Start 2P", monospace'; cx.textAlign='center'; cx.textBaseline='middle';
-        cx.fillText('?', cxm+90*p, cym+4);
-        cx.restore();
-      } else {
-        drawBang(cxm, cym, barH, dotR);
+    // 1) infinity sign -> seed -> "!" grows -> tilts -> turns into "?" -> splits apart (the bar detaches)
+    if(t<T.fadeEnd){
+      let target, r;
+      if(t<T.appear){ target={x:cxm,y:cym}; r=LEAD_R*outElastic(t/T.appear)+0.001; }
+      else if(t<T.drawEnd){ target=curve(Math.PI/2+((t-T.appear)/(T.drawEnd-T.appear))*Math.PI*2); r=LEAD_R; }
+      else { target={x:cxm,y:cym}; r=LEAD_R-(LEAD_R-SEED_R)*easeInOut((t-T.drawEnd)/(T.shrinkEnd-T.drawEnd)); }
+      const k=1-Math.exp(-dt*(t<T.drawEnd?16:10));
+      lead.x+=(target.x-lead.x)*k; lead.y+=(target.y-lead.y)*k;
+      if(t>=T.appear && t<T.drawEnd){
+        const lg=ghosts[ghosts.length-1];
+        if(!lg || Math.hypot(lg.x-lead.x,lg.y-lead.y)>4) ghosts.push({x:lead.x,y:lead.y,r,t});
       }
+      for(let i=ghosts.length-1;i>=0;i--) if(t-ghosts[i].t>0.33) ghosts.splice(i,1);
+      for(const gh of ghosts){
+        cx.save(); cx.globalAlpha=clamp01(1-(t-gh.t)/0.33)*0.5; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=12;
+        cx.beginPath(); cx.arc(gh.x,gh.y,gh.r,0,Math.PI*2); cx.fill(); cx.restore();
+      }
+      if(t<T.shrinkEnd){
+        cx.save(); cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=28;
+        cx.beginPath(); cx.arc(lead.x,lead.y,r,0,Math.PI*2); cx.fill(); cx.restore();
+      }
+      if(t>=T.shrinkEnd){
+        const stemH=STEM_H*outElastic((t-T.shrinkEnd)/(T.stemEnd-T.shrinkEnd));
+        if(t<T.stemEnd){
+          // the "!" grows out of the dot
+          drawBang(cxm,cym,0,stemH,1,1,0);
+        } else if(t<T.tiltEnd){
+          // the "!" rotates 45 degrees counterclockwise, still attached to the dot
+          const p=easeInOut((t-T.stemEnd)/(T.tiltEnd-T.stemEnd));
+          drawBang(cxm,cym,-Math.PI/4*p,STEM_H,1,1,0);
+          drawDot(cxm,cym);
+        } else {
+          // the "?" stems out of the same dot, then the shared dot splits in two:
+          // the "!" keeps its dot down-right of the shared spot, the "?" keeps its dot down-left
+          const g=clamp01(easeOut((t-T.tiltEnd)/(T.hookEnd-T.tiltEnd)));
+          const s=easeInOut((t-T.hookEnd)/(T.splitEnd-T.hookEnd));
+          // the two dots pull apart sideways so they never overlap
+          const sep=28*s;
+          // after the split, both marks straighten up
+          const st=easeInOut((t-T.splitEnd)/0.4);
+          drawBang(cxm+sep, cym, -Math.PI/4*(1-st), STEM_H, 1, 1, 0);
+          drawHook(cxm-sep, cym, Math.PI/4*(1-st), g);
+          drawDot(cxm-sep, cym);
+        }
+      }
+    }
+    if(t>=T.hookEnd){
+      // small credit line at the bottom
+      const ta=easeOut((t-T.hookEnd)/0.4);
+      cx.save(); cx.globalAlpha=ta; cx.fillStyle='#cfe6ff';
+      cx.font='14px "Press Start 2P", monospace'; cx.textAlign='center'; cx.textBaseline='middle';
+      cx.fillText('provided by orange', cxm, H-56);
+      cx.restore();
     }
 
     if(t>=T.fadeStart){
-      cv.style.opacity = String(1-easeInOut((t-T.fadeStart)/(T.fadeEnd-T.fadeStart)));
+      cv.style.opacity=String(1-easeInOut((t-T.fadeStart)/(T.fadeEnd-T.fadeStart)));
     }
     if(t<T.fadeEnd) requestAnimationFrame(frame);
     else cv.remove();
@@ -643,9 +687,11 @@
     start=performance.now(); last=start;
     requestAnimationFrame(frame);
   }
+  resize(); addEventListener('resize',resize);
   const begin=()=>{
-    const fonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
-    Promise.race([fonts, new Promise(r=>setTimeout(r,800))]).then(run);
+    const fonts=(document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    const pixel=(document.fonts && document.fonts.load) ? document.fonts.load('14px "Press Start 2P"') : Promise.resolve();
+    Promise.race([Promise.all([fonts,pixel]), new Promise(r=>setTimeout(r,800))]).then(run);
   };
   if(document.readyState==='complete') begin(); else addEventListener('load', begin);
 })();
@@ -6069,14 +6115,14 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
     log(`⏱️ Timed mode ends — Blue ${Math.round(damageA)} vs Red ${Math.round(damageB)} damage taken.`,true);
   }
 
-  let simSpeed=1;
+  let simSpeed=1, stepAcc=0;
   function loop(ts){
     if(lastTs===null) lastTs=ts;
     const dt = Math.min((ts-lastTs)/1000, 0.033);
     lastTs = ts;
     tickEffects(dt);
     if(hitstop>0) hitstop-=dt;
-    else { const sd=(cfg.cine&&slowT>0)?dt*0.35:dt; for(let i=0;i<simSpeed;i++){ update(sd); updateFx(sd); if(!gameOver) updateStats(sd); } }
+    else { const sd=(cfg.cine&&slowT>0)?dt*0.35:dt; stepAcc+=simSpeed; while(stepAcc>=1){ stepAcc-=1; update(sd); updateFx(sd); if(!gameOver) updateStats(sd); } }
     render(); 
     updateHpUI();
     updateArenaHover();
@@ -6293,10 +6339,10 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
     rafId = requestAnimationFrame(loop);
   }
 
-  document.querySelectorAll('#speedBar button').forEach(b=>b.addEventListener('click',()=>{
-    simSpeed=Number(b.dataset.s);
-    document.querySelectorAll('#speedBar button').forEach(x=>x.classList.toggle('on',x===b));
-  }));
+  document.getElementById('speedSlider').addEventListener('input', e=>{
+    simSpeed=Number(e.target.value);
+    document.getElementById('speedVal').textContent = simSpeed+'×';
+  });
   document.getElementById('startBtn').addEventListener('click', startBattle);
   document.getElementById('rematchBtn').addEventListener('click', startBattle);
   document.getElementById('changeBtn').addEventListener('click', ()=>{
