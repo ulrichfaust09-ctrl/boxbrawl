@@ -534,7 +534,8 @@
     stars=Array.from({length:150},(_,i)=>({x:rnd(i+1)*W, y:rnd(i+101)*H, s:0.6+rnd(i+201)*1.8, ph:rnd(i+301)*6.28}));
   }
 
-  const BLUE='#4da6ff';
+  const BLUE='#5a00ff';
+  const DOT=BLUE;
   const LEAD_R=28, SEED_R=20, STEM_W=18, STEM_H=92, GAP=22;
   const TILT=-Math.PI/4;
 
@@ -558,16 +559,17 @@
     cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath();
   }
   // "?" hook growing out of the dot at angle rot (grow 0..1 scales it out from the dot)
-  function drawHook(px,py,rot,grow){
+  function drawHook(px,py,rot,grow,gap){
     if(grow<=0) return;
+    const g=gap||0;
     cx.save(); cx.translate(px,py); cx.rotate(rot); cx.scale(grow,grow);
     cx.strokeStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
     cx.lineWidth=STEM_W; cx.lineCap='round';
-    cx.beginPath(); cx.arc(0,-46,18,Math.PI,Math.PI*2.5,false); cx.lineTo(0,-16); cx.stroke();
+    cx.beginPath(); cx.arc(0,-46-g,18,Math.PI,Math.PI*2.5,false); cx.lineTo(0,-16-g); cx.stroke();
     cx.restore();
   }
   function drawDot(x,y){
-    cx.save(); cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
+    cx.save(); cx.fillStyle=DOT; cx.shadowColor=DOT; cx.shadowBlur=26;
     cx.beginPath(); cx.arc(x,y,SEED_R,0,Math.PI*2); cx.fill(); cx.restore();
   }
   // "!": seed dot at (px,py); the bar sits above it, `gap` apart
@@ -576,8 +578,8 @@
     cx.save(); cx.translate(px,py); cx.rotate(rot); cx.scale(sc,sc); cx.globalAlpha=alpha;
     cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
     const bottom=-SEED_R*0.6-(gap||0);
-    if(stemH>0.5){ roundRect(-STEM_W/2,bottom-stemH,STEM_W,stemH,STEM_W/2); cx.fill(); }
-    if(showDot!==false){ cx.beginPath(); cx.arc(0,0,SEED_R,0,Math.PI*2); cx.fill(); }
+    if(stemH>0.5){ roundRect(-SEED_R,bottom-stemH,SEED_R*2,stemH,SEED_R); cx.fill(); }
+    if(showDot!==false){ cx.fillStyle=DOT; cx.shadowColor=DOT; cx.beginPath(); cx.arc(0,0,SEED_R,0,Math.PI*2); cx.fill(); }
     cx.restore();
   }
   // "?": hook + stem + dot, the hook sits `gap` above the dot
@@ -588,7 +590,7 @@
     cx.strokeStyle=BLUE; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
     cx.lineWidth=STEM_W; cx.lineCap='round';
     cx.beginPath(); cx.arc(0,-46-g,18,Math.PI,Math.PI*2.5,false); cx.lineTo(0,-16-g); cx.stroke();
-    if(showDot!==false){ cx.beginPath(); cx.arc(0,0,SEED_R,0,Math.PI*2); cx.fill(); }
+    if(showDot!==false){ cx.fillStyle=DOT; cx.shadowColor=DOT; cx.beginPath(); cx.arc(0,0,SEED_R,0,Math.PI*2); cx.fill(); }
     cx.restore();
   }
 
@@ -639,7 +641,7 @@
         cx.beginPath(); cx.arc(gh.x,gh.y,gh.r,0,Math.PI*2); cx.fill(); cx.restore();
       }
       if(t<T.shrinkEnd){
-        cx.save(); cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=28;
+        cx.save(); cx.fillStyle=DOT; cx.shadowColor=DOT; cx.shadowBlur=28;
         cx.beginPath(); cx.arc(lead.x,lead.y,r,0,Math.PI*2); cx.fill(); cx.restore();
       }
       if(t>=T.shrinkEnd){
@@ -650,7 +652,7 @@
         } else if(t<T.tiltEnd){
           // the "!" rotates 45 degrees counterclockwise, still attached to the dot
           const p=easeInOut((t-T.stemEnd)/(T.tiltEnd-T.stemEnd));
-          drawBang(cxm,cym,-Math.PI/4*p,STEM_H,1,1,0);
+          drawBang(cxm,cym,-Math.PI/4*p,STEM_H,1,1,GAP*easeOut((t-T.stemEnd)/0.25));
           drawDot(cxm,cym);
         } else {
           // the "?" stems out of the same dot, then the shared dot splits in two:
@@ -659,11 +661,13 @@
           const s=easeInOut((t-T.hookEnd)/(T.splitEnd-T.hookEnd));
           // the two dots pull apart sideways so they never overlap
           const sep=28*s;
-          // after the split, both marks straighten up
+          // after the split: "!" stays on the left, "?" moves right; both straighten and detach
           const st=easeInOut((t-T.splitEnd)/0.4);
-          drawBang(cxm+sep, cym, -Math.PI/4*(1-st), STEM_H, 1, 1, 0);
-          drawHook(cxm-sep, cym, Math.PI/4*(1-st), g);
-          drawDot(cxm-sep, cym);
+          // the gap opens as soon as the split starts, so the marks never touch their dots
+          const gp=GAP*easeOut((t-T.stemEnd)/0.25);
+          drawBang(cxm-sep, cym, -Math.PI/4*(1-st), STEM_H, 1, 1, gp);
+          drawHook(cxm+sep, cym, Math.PI/4*(1-st), g, gp);
+          drawDot(cxm+sep, cym);
         }
       }
     }
@@ -1090,6 +1094,7 @@
       cdBlacksmith: rand(0, DEFS.blacksmith.fireRate),
       cdAngry: rand(0, DEFS.angry.fireRate),
       cdCool: rand(0, DEFS.coolguy.throwInterval),
+      cdHead: DEFS.headless.splitInterval,
       cdHenchman: rand(0, DEFS.henchman.fireRate),
       cdDrunk: rand(0, DEFS.drunk.fireRate),
       cdManager: rand(0, DEFS.manager.suitcaseFireRate),
@@ -2954,6 +2959,74 @@
     }
     ctx.drawImage(angryTint,u.x-size/2,u.y-size/2,size,size);
   }
+  // ---- Headless Guyman: pumpkin head and charging body ----
+  const HG_PUMP_IMG=Object.assign(new Image(),{src:'HGpumpkin.png'});
+  const HG_BODY_IMG=Object.assign(new Image(),{src:'HGbody.png'});
+  const HG_PUMP_R=16, HG_BODY_R=28;
+  const headPumpkins=[], headCharges=[];
+  function spawnHeadless(o,target){
+    const C=DEFS.headless;
+    headPumpkins.push({owner:o,target,x:o.x,y:o.y,state:'fly',hits:0,chompT:0,ang:0});
+    headCharges.push({owner:o,target,x:o.x,y:o.y,done:false,t:0});
+  }
+  function updateHeadless(dt){
+    const C=DEFS.headless;
+    for(let i=headPumpkins.length-1;i>=0;i--){
+      const p=headPumpkins[i], tg=p.target;
+      if(!tg.alive || p.state==='done'){ headPumpkins.splice(i,1); continue; }
+      const dx=tg.x-p.x, dy=tg.y-p.y, d=Math.hypot(dx,dy)||1;
+      if(p.state==='fly'){
+        const step=Math.min(C.pumpkinSpeed*dt,Math.max(0,d-(tg.r+HG_PUMP_R)));
+        p.x+=dx/d*step; p.y+=dy/d*step;
+        if(d<=tg.r+HG_PUMP_R+1){ p.state='chomp'; p.chompT=0; }
+      } else if(p.state==='chomp'){
+        // stays on the target's edge and chomps
+        const ux=(p.x-tg.x)/d, uy=(p.y-tg.y)/d;
+        p.x=tg.x+ux*(tg.r+HG_PUMP_R); p.y=tg.y+uy*(tg.r+HG_PUMP_R);
+        p.chompT-=dt;
+        if(p.chompT<=0){
+          const hw=hasModifier(p.owner,'halloween');
+          dealDamage(p.owner,tg,C.pumpkinDamage+(hw?10:0),null,true);
+          if(hw){ tg.slowAmt=Math.min(0.6,(tg.slowT>0?tg.slowAmt:0)+0.2); tg.slowT=1; }
+          p.hits++; p.chompT=0.35;
+          if(p.hits>=C.pumpkinHits) p.state='done';
+        }
+      }
+      p.ang+=dt*6;
+    }
+    for(let i=headCharges.length-1;i>=0;i--){
+      const b=headCharges[i], tg=b.target;
+      if(!tg.alive || b.done){ headCharges.splice(i,1); continue; }
+      const dx=tg.x-b.x, dy=tg.y-b.y, d=Math.hypot(dx,dy)||1;
+      const step=Math.min(C.chargeSpeed*dt,Math.max(0,d-(tg.r+HG_BODY_R)));
+      b.x+=dx/d*step; b.y+=dy/d*step; b.t+=dt;
+      if(d<=tg.r+HG_BODY_R+1){
+        dealDamage(b.owner,tg,C.chargeDamage,{x:dx/d,y:dy/d});
+        if(hasModifier(b.owner,'spookyScary')){
+          const team=teams.find(t=>t.id===b.owner.team);
+          if(team){ const sk=makeUnit('skeleton',team.id,b.x,b.y,{}); sk.hp=DEFS.necromancer.skeletonHp; sk.maxhp=sk.hp; team.units.push(sk); }
+        }
+        b.done=true; headCharges.splice(i,1);
+      }
+    }
+  }
+  function drawHeadless(){
+    for(const p of headPumpkins){
+      const s=HG_PUMP_R*2.6;
+      ctx.save(); ctx.translate(p.x,p.y); if(p.target.x>p.x) ctx.scale(-1,1); ctx.rotate(p.ang);
+      if(HG_PUMP_IMG.complete && HG_PUMP_IMG.naturalWidth>0) ctx.drawImage(HG_PUMP_IMG,-s/2,-s/2,s,s);
+      else { ctx.font=`${HG_PUMP_R*2}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🎃',0,0); }
+      ctx.restore();
+    }
+    for(const b of headCharges){
+      const tg=b.target, dx=tg.x-b.x, dy=tg.y-b.y;
+      const s=HG_BODY_R*2.4;
+      ctx.save(); ctx.translate(b.x,b.y); if(dx<0) ctx.scale(-1,1);
+      if(HG_BODY_IMG.complete && HG_BODY_IMG.naturalWidth>0) ctx.drawImage(HG_BODY_IMG,-s/2,-s/2,s,s);
+      else { ctx.font=`${HG_BODY_R*2}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🎃',0,0); }
+      ctx.restore();
+    }
+  }
   // ---- Sprites for: tired, poker, drunk, blacksmith, magician, pingpong, gravity ----
   const GEN_SPR={
     tired:Object.assign(new Image(),{src:'tiredguy.png'}),
@@ -2963,6 +3036,7 @@
     magician:Object.assign(new Image(),{src:'magician.png'}),
     pingpong:Object.assign(new Image(),{src:'pingpong.png'}),
     gravity:Object.assign(new Image(),{src:'gravity.png'}),
+    headless:Object.assign(new Image(),{src:'HGfull.png'}),
     woman:Object.assign(new Image(),{src:'woman.png'}),
     detective:Object.assign(new Image(),{src:'detective.png'}),
     chess:Object.assign(new Image(),{src:'chess.png'}),
@@ -3340,6 +3414,7 @@
       }
       if(u.adrenT>0) u.adrenT-=dt;
 if(u.chaosT>0) u.chaosT-=dt;
+if(u.slowT>0){ u.slowT-=dt; if(u.slowT<=0) u.slowAmt=0; }
       if(u.burnT>0){ u.burnT-=dt; u.burnTick=(u.burnTick||0)-dt; if(Math.random()<dt*14&&particles.length<700) particles.push({x:u.x+(Math.random()-0.5)*u.r,y:u.y,vx:0,vy:-60,life:0.4,max:0.4,size:9,color:'#ff7a3a',g:0}); if(u.burnTick<=0){ u.burnTick=0.5; dealDamage(u.burnOwner,u,10,null,true); } }
       if(u.psnT>0){ u.psnT-=dt; u.psnTick=(u.psnTick||0)-dt; if(Math.random()<dt*10&&particles.length<700) particles.push({x:u.x+(Math.random()-0.5)*u.r,y:u.y,vx:0,vy:-40,life:0.4,max:0.4,size:8,color:'#8be04a',g:0}); if(u.psnTick<=0){ u.psnTick=0.5; dealDamage(u.psnOwner,u,(u.psnStacks||1)*3,null,true); } if(u.psnT<=0) u.psnStacks=0; }
       if(u.fearT>0){ u.fearT-=dt; if(u.fearFrom){ const sp=Math.hypot(u.vx,u.vy)||150, a=Math.atan2(u.y-u.fearFrom.y,u.x-u.fearFrom.x); u.vx=Math.cos(a)*sp; u.vy=Math.sin(a)*sp; } }
@@ -3348,7 +3423,7 @@ if(u.chaosT>0) u.chaosT-=dt;
       if(u.danceT>0){ u.danceT-=dt; u.danceTick=(u.danceTick||0)-dt; if(u.danceTick<=0){ u.danceTick=0.25; const sp=Math.hypot(u.vx,u.vy)||150, a=Math.random()*6.28; u.vx=Math.cos(a)*sp; u.vy=Math.sin(a)*sp; } }
     }
     updateBooms(dt);
-    updateCoolGlasses(dt); updateCoolFx(dt); updateScreams(dt);
+    updateCoolGlasses(dt); updateCoolFx(dt); updateHeadless(dt); updateScreams(dt);
     if(cfg.speedVar) for(const t of teams) for(const u of t.units){
       if(!u.alive) continue;
       if(u.pvx!==undefined && (u.pvx*u.vx<0 || u.pvy*u.vy<0) && Math.hypot(u.vx,u.vy)>5){
@@ -3423,6 +3498,7 @@ if(u.chaosT>0) u.chaosT-=dt;
       if(u.alive && u.flashT>0){ ctx.globalAlpha=Math.min(1,u.flashT/0.12)*0.65; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(u.x,u.y,u.r,0,7); ctx.fill(); ctx.globalAlpha=1; u.flashT-=1/60; }
     }
     drawCoolGlasses();
+    drawHeadless();
     drawCoolFx();
     for(const z of zones){ ctx.save(); ctx.globalAlpha=0.28*Math.min(1,z.life*2); ctx.fillStyle=z.web?'#e8e8f0':'#6fd13a'; ctx.beginPath(); ctx.arc(z.x,z.y,z.r,0,7); ctx.fill(); ctx.globalAlpha=0.6*Math.min(1,z.life*2); ctx.strokeStyle=z.web?'#ffffff':'#b6f27a'; ctx.lineWidth=5; ctx.stroke(); ctx.restore(); }
     for(const t of teams) for(const u of t.units) if(u.alive&&u.shield>0){ ctx.save(); ctx.strokeStyle='#9be85a'; ctx.globalAlpha=0.5+0.4*Math.min(1,u.shield/150); ctx.lineWidth=6; ctx.beginPath(); ctx.arc(u.x,u.y,u.r+12,0,7); ctx.stroke(); ctx.restore(); }
@@ -3521,6 +3597,7 @@ if(u.chaosT>0) u.chaosT-=dt;
   function genMoveMult(u){
   let m=(u.adrenT>0?1.25:1)*(1+0.0333*furyStacks(u));
   if(u.chaosT>0) m*=1.75;
+  if(u.slowT>0) m*=1-u.slowAmt;
   if(genOn(u,'blessing5') && u.shield>0) m*=1.25;
   return m;
 }
@@ -4862,6 +4939,13 @@ function blessingOnDamage(u,dmg){
           }
         }
 
+        if(unit.defKey==='headless'){
+          unit.cdHead -= dt;
+          if(target && unit.cdHead<=0 && unit.attackDisabled<=0){
+            unit.cdHead = DEFS.headless.splitInterval;
+            spawnHeadless(unit,target);
+          }
+        }
         if(unit.defKey==='coolguy'){
           unit.cdCool -= dt;
           if(target && unit.cdCool<=0 && unit.attackDisabled<=0){
@@ -5960,6 +6044,8 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
             ctx.fillText(d.emoji,0,0); ctx.restore();
           } else if(u.defKey==='cactus'){
             drawCactusSprite(u);
+          } else if(u.defKey==='headless'){
+            drawFacingSprite(u,GEN_SPR.headless,u.vx>0.5);
           } else if(GEN_SPR[u.defKey]){
             drawGenericSprite(u,GEN_SPR[u.defKey]);
           } else if(u.defKey==='megaphone'){

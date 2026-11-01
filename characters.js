@@ -24,6 +24,18 @@
   "use strict";
 
   const CHAR_DEFS = {
+    headless: {
+      key:'headless', name:'Headless Guyman', emoji:'🎃', maxhp:1000,
+      speed:130, r:52,
+      splitInterval:3.25, pumpkinDamage:35, pumpkinHits:3, pumpkinSpeed:420,
+      chargeDamage:95, chargeSpeed:650,
+      modifiers:{
+        spookyScary:{name:'Spooky Scary', desc:'After a successful charge, spawns 1 skeleton that walks straight to the enemy'},
+        halloween:{name:'Halloween', desc:'+10 chomp damage. Each chomp slows the enemy by 20% (up to 60%) for 1 second'}
+      },
+      desc:'Every 2s the pumpkin head flies at the enemy and chomps 3 times for 35 each, while the body charges straight in for 95.'
+    },
+
     coolguy: {
       key:'coolguy', name:'Cool Guy', emoji:'😎', maxhp:1000,
       speed:150, r:52,
