@@ -24,6 +24,29 @@
   "use strict";
 
   const CHAR_DEFS = {
+    torch: {
+      key:'torch', name:'Torch Guy', emoji:'🔥', maxhp:1000,
+      speed:120, r:52,
+      torchRange:130, torchFlat:15, torchPct:0.02, torchCd:0.5, torchMinCd:0.25,
+      modifiers:{
+        bigAhhTorch:{name:'Big Ahh Torch', desc:'+33% burn range. The closer the enemy is to the torch, the faster the burns (cooldown 0.5s down to 0.25s)'},
+        cooked:{name:'Cooked', desc:'+0.5% max HP per burn. For every 7.5% max HP burned, burn damage rises by 0.5% (up to 1.5%)'}
+      },
+      desc:'Enemies above the torch take 15 damage + 2% of their max HP every 0.5s.'
+    },
+
+    dictator: {
+      key:'dictator', name:'Dictator Guy', emoji:'🎖️', maxhp:1000,
+      speed:120, r:52,
+      missileInterval:4, missileDelay:0.6, missileAreaFrac:0.4, missileDamage:200,
+      miniCount:12, miniDamage:20, miniSlow:0.5, miniSlowTime:0.5,
+      modifiers:{
+        reload:{name:'Reload!', desc:'Missile cooldown reduced by 1 second'},
+        measures:{name:'Measures', desc:'After each explosion, 12 mini explosions follow (3 on each side): 20 damage each and 50% slow for 0.5s'}
+      },
+      desc:'Every 4s aims a missile at the enemy\'s spot. After 0.6s it explodes in a large area for 200 damage.'
+    },
+
     headless: {
       key:'headless', name:'Headless Guyman', emoji:'🎃', maxhp:1000,
       speed:130, r:52,
@@ -386,7 +409,7 @@
       desc:'Chases and bites for 40 dmg, and webs slow enemies for 0.8s.' },
     disco: { key:'disco', name:'Disco Guy', emoji:'🪩', maxhp:1000, speed:170, r:50,
       modifiers:{dance:{name:'Dance Battle',desc:'Pulses make enemies dance for 1.5s: their movement turns random'},encore:{name:'Encore',desc:'Once, below 30% HP, a huge pulse hits for 200, stuns for 0.5s and heals you 150 HP'}},
-      desc:'Every 2s a dance pulse hits all enemies within 220px for 45 dmg.' },
+      desc:'Every 0.5s a dance pulse hits all enemies within 220px for 45 dmg.' },
     sumo: { key:'sumo', name:'Sumo Guy', emoji:'🤼', maxhp:1800, speed:120, r:60,
       mel:{dmg:90,rate:1.1,range:70},
       modifiers:{stomp:{name:'Stomp',desc:'Every 4s a stomp hits everyone within 260px for 60 damage and a 0.6s stun'},bulk:{name:'Bulk Up',desc:'Every hit he takes makes him bigger: +1.5% size and damage, up to 40 times'}},
@@ -800,7 +823,7 @@
     sukuna: {
       key:'sukuna', name:'Sukuna Guy', emoji:'👹', maxhp:1000,
       speed:150, r:50,
-      shrineStartCd:5, shrineCd:11, shrineDuration:4, shrineSlashes:100, shrineSlashDamage:1.1, shrineSlashStun:0.05, shrineRadius:130,
+      shrineStartCd:5, shrineCd:11, shrineDuration:4, shrineSlashes:100, shrineSlashDamage:1.1, shrineSlashStun:0.05, shrineRadius:200,
       wordCd:7, wordDamage:100, wordShrineDamage:150, wordShrineExtraSlashes:25,
       fugaCd:10, fugaDamage:90, fugaRadius:160,
       modifiers:{
