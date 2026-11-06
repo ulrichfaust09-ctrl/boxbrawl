@@ -449,13 +449,13 @@
     },
     drunk: {
       key:'drunk', name:'Drunk Guy', emoji:'🍺', maxhp:1000,
-      damage:111, fireRate:1.5, projSpeed:840, projR:9,
+      damage:111, fireRate:1.5, projSpeed:840, projR:13.5, beerDamage:14, beerTime:2.5, beerSpeedMult:1.2,
       modifiers:{
         sharing:{name:'Sharing', desc:'A successful beer disables attacking for 0.5s and scrambles movement'},
         hammered:{name:'Hammered', desc:'Below 50% HP: drink, frenzy, double beers and glass spikes'}
       },
       speed:210, r:50,
-      desc:'Throws a beer in a straight line for 111 dmg. Staggers around unpredictably instead of a clean bounce.'
+      desc:'Throws a beer in a straight line for 111 dmg. Beers are 50% bigger. Staggers around unpredictably instead of a clean bounce. After a beer lands, he drinks: his next beer deals +14 dmg and he moves 20% faster for 2.5s.'
     },
     henchman: {
       key:'henchman', name:'Henchmen', emoji:'👊', maxhp:100,
@@ -566,17 +566,16 @@
       punchDamage:80, uppercutDamage:120, downDamage:90,
       fireRate:0.6, meleeRange:98,
       dodgeBase:0.175, dodgePerChunk:0.10, dodgeHpChunk:33,
-      championWindow:0.4, championStep:10, championMaxStacks:5, championIdleTime:3, championIdleDamage:25, championIdleStun:0.4,
-      parryWindow:2, parryDamage:200, parryChance:0.5, parryChanceLow:0.75, parryLowHp:0.5,
+      untouchParry:0.25, untouchParryLow:0.5, parryLowHp:0.5, untouchKb:1.5, untouchWindow:1,
+      unbeatStep:5, unbeatWindow:3, unbeatMaxStacks:10, idleWindow:3, idleDmgMult:1.25, idleStun:0.33, cleaveArc:1.2,
+      followSafeGap:140, followResumeGap:200, lowHpBias:220,
       dodgeChance:0.5, dodgePush:260, dodgeStep:70, blockDuration:0.75, dodgeStun:0.75, blockStart:0.3, blockEnd:0.6, blockCooldown:2, reactWindow:0.25, comboChance:0.5, comboMin:5, comboMax:10, comboGap:0.08,
       speed:180, r:52,
       modifiers:{
-        champion:{name:'Champion', desc:'Hits landing within 0.4s of the last one add +10 damage (up to +50). After 3s without a hit, the next hit deals +25 damage and stuns for an extra 0.4s'},
-        parry:{name:'Parry!', desc:'After taking 200 damage within 2s, parry unlocks: 50% chance (75% below 50% HP) to parry hits. Melee hits are sent back at the attacker, projectiles are reflected'},
-        chaining:{name:'Chaining', desc:'Landing a hit within 0.4s of the last one gives +10 damage, stacking up to +50'},
-        strongBlow:{name:'Strong Blow', desc:"After 3s without landing a hit, the next attack deals +25 damage and stuns for an extra 0.25s"}
+        untouchable:{name:'Untouchable', desc:'After landing a combo, dodge rate is 100% for 1s (no stacking). Attacks deal 50% more knockback. Unlocks Parry: every attack taken or dodged has a 25% chance to parry (50% below 50% HP), reflecting its damage and debuffs back at the attacker'},
+        unbeatable:{name:'Unbeatable', desc:'Each successful attack adds a combo stack lasting 3s (max 10). Each stack adds +5 damage to the next attack. After 3s without landing a hit, the next attack deals +25% damage and stuns for 0.33s. Main punches cleave: they also hit every other foe in front of him within reach'}
       },
-      desc:'DODGE! 50% to slip any hit. REACT! strikes first when a melee foe is about to hit. COMBO! base punches can flurry into 5-10 more punches. Punches every 0.6s when near, chaining hit after hit, with brief stun and a knockback. Catch a foe above him and he uppercuts for 120 dmg, sending them flying; catch one below and he strikes downward for 90 dmg with a longer stun. Against incoming projectiles he has a 17.5% chance to dodge and step clear, rising 10% for every 33% of his HP he has lost.'
+      desc:'DODGE! 50% to slip any hit. REACT! strikes first when a melee foe is about to hit. COMBO! base punches can flurry into 5-10 more punches. Punches every 0.6s when near, chaining hit after hit, with brief stun and a knockback. Catch a foe above him and he uppercuts for 120 dmg, sending them flying; catch one below and he strikes downward for 90 dmg with a longer stun. Against incoming projectiles he has a 17.5% chance to dodge and step clear, rising 10% for every 33% of his HP he has lost. Above 50% HP he always chases a foe (the lowest HP, unless that foe is much farther than the closest). At 50% HP or less he chases only until he has a safe gap, then holds his ground.'
     },
     referee: {
       key:'referee', name:'Referee Guy', emoji:'🟨', maxhp:1000,

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Guy Fights</title>
+<link rel="icon" type="image/png" href="boxinguy.png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Cinzel:wght@600;800&family=Rubik:wght@400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -139,6 +140,7 @@
   .charCard:hover{transform:translateY(-2px) scale(1.01);border-color:var(--gold);box-shadow:0 8px 18px rgba(0,0,0,.4);}
   .charCard.selA{border-color:var(--teamA);background:linear-gradient(160deg,#123038,#0e2328);box-shadow:0 0 0 1px var(--teamA) inset, 0 0 18px var(--teamA-glow);}
   .charCard.selB{border-color:var(--teamB);background:linear-gradient(160deg,#331616,#280f10);box-shadow:0 0 0 1px var(--teamB) inset, 0 0 18px var(--teamB-glow);}
+  .charEmoji img{width:100%;height:100%;object-fit:contain;border-radius:50%;display:block;}
   .charEmoji{
     font-size:1.35rem;width:36px;height:36px;line-height:36px;text-align:center;flex-shrink:0;
     background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.10), rgba(0,0,0,.25));
@@ -855,6 +857,8 @@
     }
     panel.className = 'modifierBox visible';
     panel.innerHTML = `<div class="modifierTitle">MODIFIERS</div>`;
+    const card = (side==='A' ? listA : listB).querySelector(`.charCard[data-key="${key}"]`);
+    if(card) card.insertAdjacentElement('afterend', panel);
     Object.entries(modifiers).forEach(([modKey, mod])=>{
       const label = document.createElement('label');
       label.className = 'modifierOption';
@@ -905,12 +909,28 @@
   renderGeneralMods('A');
   renderGeneralMods('B');
 
+  // Base sprites shown on the fighter menu buttons (units without a sprite keep their emoji)
+  const CHAR_SPRITES = {
+    boxing:'boxinguy.png', drunk:'drunkguy.png', angry:'angryguy.png', coolguy:'coolguy.png',
+    knight:'armoredknight.png', henchman:'henchmen.png', guyincharge:'guyincharge.png',
+    headless:'HGfull.png', camera:'camera.png', gwnn:'guywithnoname.png', sukuna:'sukuna.webp',
+    megaphone:'megaphone.png', cactus:'cactus.png', tired:'tiredguy.png', poker:'pokerguy.png',
+    blacksmith:'blacksmith.png', magician:'magician.png', pingpong:'pingpong.png', gravity:'gravity.png',
+    dictator:'dictator.png', torch:'torchguy.png', woman:'woman.png', detective:'detective.png',
+    chess:'chess.png', priest:'priest.png', ghost:'ghost.png', chef:'chef.png', doctor:'doctor.png',
+    fireworks:'firework.png', manager:'manager.png', exploding:'exploding.png', sentient:'sentient.png',
+    football:'football.png', weatherman:'weatherman.png', pirate:'pirate.png'
+  };
   function buildCard(key, side){
     const d = DEFS[key];
     const card = document.createElement('div');
     card.className = 'charCard';
     card.dataset.name = (d.name+' '+key).toLowerCase();
-    card.innerHTML = `<div class="charEmoji">${d.emoji}</div>
+    card.dataset.key = key;
+    const icon = CHAR_SPRITES[key]
+      ? `<img src="${CHAR_SPRITES[key]}" alt="" onerror="this.outerHTML='${d.emoji}'">`
+      : d.emoji;
+    card.innerHTML = `<div class="charEmoji">${icon}</div>
       <div class="charInfo"><b>${d.name}</b></div>`;
     let lastMouse = {x:0,y:0};
     card.addEventListener('mousemove', (e)=>{
@@ -1120,7 +1140,7 @@
       cdFactorial:5, cdFibonacci:1,
       factorialIndex:1, fibonacciA:1, fibonacciB:1, fibonacciTotal:0, fibonacciRecent:[],
       pocketStealCd:15, pocketDamage:0, pocketStolen:[], pocketAbilityStates:{}, pocketDodgeT:0,
-      cdBoxing:rand(0,0.15), chainStacks:0, chainTimer:0, boxingIdleTimer:0,
+      cdBoxing:rand(0,0.15), untouchT:0, unbeatStacks:[], boxFollow:true,
       cdReferee:rand(0,DEFS.referee.cardInterval), refereeSlowStacks:0,
       cdGardener:rand(0,DEFS.gardener.seedInterval),
       bleedTimer:0, bleedDps:0, bleedTickTimer:0,
@@ -1198,6 +1218,7 @@
   function aliveUnits(team){ return team.units.filter(u=>u.alive); }
   function teamDefeated(team){
     if(team.infinite) return false;
+    if(team.pwfLost) return true;
     if(team.defKey==='henchman'){
       // The mob only loses once it has used up all 10 spawns AND every one is down.
       const maxCount = DEFS.henchman.maxCount + (team.modifiers.squadron ? 10 : 0);
@@ -2600,18 +2621,59 @@
     return foes?aliveUnits(foes).some(f=>f.defKey!=='boxing' && DEFS[f.defKey] && DEFS[f.defKey].meleeRange && dist(u,f)-(u.r+f.r)<=DEFS[f.defKey].meleeRange):false;
   }
   function boxingDodgeNow(u){
+    if((u.untouchT||0)>0) return 1;
     const f=u.hp/u.maxhp;
     if(f<0.33) return 0.9;
     if(f<0.5) return 0.75;
     if(f<0.66) return 0.66;
     return DEFS.boxing.dodgeChance;
   }
+  // Unbeatable: a main punch also hits every other foe inside a forward arc within reach
+  function boxingCleave(u,main,dmg){
+    const foes=teams.find(t=>t.id!==u.team);
+    if(!foes) return;
+    const ang=Math.atan2(main.y-u.y,main.x-u.x);
+    for(const e of aliveUnits(foes)){
+      if(e===main || e.invincible) continue;
+      if(dist(u,e)-(u.r+e.r)>DEFS.boxing.meleeRange) continue;
+      const a=Math.atan2(e.y-u.y,e.x-u.x);
+      const diff=Math.abs(Math.atan2(Math.sin(a-ang),Math.cos(a-ang)));
+      if(diff>DEFS.boxing.cleaveArc/2) continue;
+      if(dealDamage(u,e,dmg,null,true)) addFloater(e.x,e.y-e.r-20,'CLEAVE!','#ffb454');
+    }
+  }
+  // Boxing Guy modes: above 50% HP he always chases; at 50% or less he chases until he has a safe gap, then holds
+  function boxingChaseTarget(u,enemy){
+    const alive=aliveUnits(enemy);
+    if(!alive.length) return null;
+    let near=alive[0], nearD=Infinity, low=alive[0];
+    for(const e of alive){
+      const d=dist(u,e);
+      if(d<nearD){ nearD=d; near=e; }
+      if(e.hp<low.hp) low=e;
+    }
+    return dist(u,low)<=nearD+DEFS.boxing.lowHpBias ? low : near;
+  }
+  function boxingSteer(u,enemy){
+    const B=DEFS.boxing;
+    const t=boxingChaseTarget(u,enemy);
+    if(!t) return;
+    const gap=dist(u,t)-(u.r+t.r);
+    if(u.hp/u.maxhp>0.5) u.boxFollow=true;
+    else if(gap<=B.followSafeGap) u.boxFollow=false;
+    else if(gap>B.followResumeGap) u.boxFollow=true;
+    if(u.boxFollow){
+      const ang=Math.atan2(t.y-u.y,t.x-u.x);
+      u.vx=Math.cos(ang)*B.speed; u.vy=Math.sin(ang)*B.speed;
+    } else { u.vx=0; u.vy=0; }
+  }
   function updateBoxingExtras(dt){
     const D=DEFS.boxing;
     for(const team of teams) for(const u of team.units){
       if(u.defKey!=='boxing' || !u.alive) continue;
       u.uppercutT=Math.max(0,(u.uppercutT||0)-dt);
-      if(hasModifier(u,'champion') && meleeClock-(u.lastHitClock||0)>DEFS.boxing.championIdleTime) u.champReady=true;
+      if(u.lastLandedClock===undefined) u.lastLandedClock=meleeClock;
+      u.untouchT=Math.max(0,(u.untouchT||0)-dt);
       if(u.dodgePunch){
         u.dodgePunch=false;
         const foes=teams.find(tm=>tm.id!==u.team);
@@ -2639,7 +2701,8 @@
           u.comboT-=dt;
           if(u.comboT<=0){
             u.comboT=D.comboGap; u.comboQueue--;
-            dealDamage(u,t,D.punchDamage,null,true);
+            const comboHit=dealDamage(u,t,D.punchDamage,null,true);
+            if(comboHit && hasModifier(u,'untouchable')) u.untouchT=D.untouchWindow;
             u.swingTimer=0.12; u.swingAngle=Math.atan2(t.y-u.y,t.x-u.x); u.swingKind='boxing';
           }
         }
@@ -3096,6 +3159,7 @@
   }
   // ---- Sprites for: tired, poker, drunk, blacksmith, magician, pingpong, gravity ----
   const GEN_SPR={
+    pirate:Object.assign(new Image(),{src:'pirate.png'}),
     tired:Object.assign(new Image(),{src:'tiredguy.png'}),
     poker:Object.assign(new Image(),{src:'pokerguy.png'}),
     drunk:Object.assign(new Image(),{src:'drunkguy.png'}),
@@ -3556,10 +3620,10 @@ if(u.slowT>0){ u.slowT-=dt; if(u.slowT<=0) u.slowAmt=0; }
     }
     for(const t of teams) for(const u of t.units){
       if(!u.alive||u.defKey!=='pirate'||u.hideTimer>0) continue;
-      const hl=Math.hypot(u.vx,u.vy), hx=hl>1?u.vx/hl:1, hy=hl>1?u.vy/hl:0, lx=hy, ly=-hx, la=Math.atan2(ly,lx);
-      const sw=u.swordT>0?1-u.swordT/0.2:0, ang=la+(u.swordT>0?(sw-0.5)*2.0:0);
+      const sw=u.swordT>0?1-u.swordT/0.2:0, la=Math.PI, ang=la+(u.swordT>0?(sw-0.5)*2.0:0);
       ctx.save(); ctx.translate(u.x+Math.cos(ang)*(u.r+6),u.y+Math.sin(ang)*(u.r+6)); ctx.rotate(ang+Math.PI/4);
       ctx.font=`${u.r*1.3}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🗡️',0,0); ctx.restore();
+      ctx.save(); ctx.translate(u.x+u.r+6,u.y); ctx.font=`${u.r*1.1}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔫',0,0); ctx.restore();
       if(u.swordT>0){ ctx.save(); ctx.strokeStyle='#fff'; ctx.globalAlpha=0.7*(u.swordT/0.2); ctx.lineWidth=6; ctx.beginPath(); ctx.arc(u.x,u.y,u.r+34,la-1,la+1); ctx.stroke(); ctx.restore(); }
     }
     for(const b of booms){ ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.em?0:b.age*16); ctx.font=`${b.r*(b.em?2.6:3.2)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(b.em||'🪃',0,0); ctx.restore(); }
@@ -3654,6 +3718,46 @@ if(u.slowT>0){ u.slowT-=dt; if(u.slowT<=0) u.slowAmt=0; }
   // ---- General modifiers: team-wide effects ----
   let inPoisonTick=false, hitIsRanged=false;
   const POISON_TICK=0.2, POISON_TICKS=5, POISON_MELEE=15, POISON_RANGED=10;
+  const DIABETES_CHANCE=0.2, DIABETES_DELAY=0.5, DIABETES_SLOW=0.2;
+  // Bloodlust: each 2% of max HP lost banks 2/3.92 % life steal for the next attack (cap 25%, heals max 33 HP/s)
+  const BLOOD_PER_STACK=(2/3.92)/100, BLOOD_STACK_HP=0.02, BLOOD_CAP=0.25, BLOOD_HEAL_PER_SEC=33;
+  function bloodlustHeal(u,amount){
+    if(!u.alive || amount<=0) return;
+    if(u.bloodWinStart===undefined || meleeClock-u.bloodWinStart>=1){ u.bloodWinStart=meleeClock; u.bloodBudget=BLOOD_HEAL_PER_SEC; }
+    const h=Math.min(amount,u.bloodBudget);
+    if(h<=0) return;
+    u.bloodBudget-=h;
+    const before=u.hp; u.hp=Math.min(u.maxhp,u.hp+h);   // heals real HP only, never lost Blessing shield
+    const got=Math.round(u.hp-before);
+    if(got>0) addFloater(u.x,u.y-u.r-18,`+${got} LIFESTEAL`,'#ff4d6d');
+  }
+  let swapTimer=0;
+  // ---- Swap!: every 5s, blue and red units trade places (paired one-to-one) ----
+  function updateSwap(dt){
+    if(!selectedGeneralA.swap && !selectedGeneralB.swap) return;
+    swapTimer+=dt;
+    if(swapTimer<5) return;
+    swapTimer-=5;
+    const a=aliveUnits(teams.find(t=>t.id==='A')||{units:[]});
+    const b=aliveUnits(teams.find(t=>t.id==='B')||{units:[]});
+    const n=Math.min(a.length,b.length);
+    for(let i=0;i<n;i++){
+      const p=a[i], q=b[i];
+      [p.x,q.x]=[q.x,p.x];
+      [p.y,q.y]=[q.y,p.y];
+    }
+    if(n){
+      addFloater((BOX.left+BOX.right)/2, BOX.top+40, 'SWAP!', '#c8a2ff');
+      log('🔄 Swap! Blue and red units trade places.', true);
+    }
+  }
+  function spawnPirateMates(team){
+    for(let i=0;i<2;i++){
+      const u=makeUnit('pirate',team.id,team.homeX+rand(-40,40),team.homeY+(i?-90:90)+rand(-20,20),{});
+      u.hp=100; u.maxhp=100;
+      team.units.push(u);
+    }
+  }
   function genOn(u,key){ if(!u || u.defKey==='henchman') return false; const s=u.team==='A'?selectedGeneralA:selectedGeneralB; return !!s[key]; }
   function furyStacks(u){ return (u && u.furyTimers) ? u.furyTimers.length : 0; }
   function genDamageMult(attacker){
@@ -3668,12 +3772,14 @@ if(u.slowT>0){ u.slowT-=dt; if(u.slowT<=0) u.slowAmt=0; }
   let m=(u.adrenT>0?1.25:1)*(1+0.0333*furyStacks(u));
   if(u.chaosT>0) m*=1.75;
   if(u.slowT>0) m*=1-u.slowAmt;
+  if(u.diabetesSlowT>0) m*=1-DIABETES_SLOW;
   if(genOn(u,'blessing5') && u.shield>0) m*=1.25;
   return m;
 }
   function genAttackSpeedMult(u){ return u.adrenT>0?1.5:1; }
   function luckChance(u,base){ return genOn(u,'lucky') ? base+(u.defKey==='poker'?0.05:0.175) : base; }
   function applyGeneralSpawn(u){
+  if(genOn(u,'ulrich')){ u.r*=0.75; }
   if(genOn(u,'suddenDeath')){ u.maxhp=Math.round(u.maxhp*0.15); u.hp=u.maxhp; }
   const bless = genOn(u,'blessing5')?250 : genOn(u,'blessing4')?250 : genOn(u,'blessing3')?250 : genOn(u,'blessing2')?175 : genOn(u,'blessing1')?100 : 0;
   if(bless){ u.shield=(u.shield||0)+bless; u.blessMax=bless; }
@@ -3713,21 +3819,9 @@ function blessingOnDamage(u,dmg){
         return false;
       }
     }
-    if(target.defKey==='boxing' && hasModifier(target,'parry') && dmg>0){
-      const PD=DEFS.boxing;
-      target.recentDmg=(target.recentDmg||[]).filter(e=>meleeClock-e.t<=PD.parryWindow).concat([{t:meleeClock,dmg}]);
-      if(!target.parryOn && target.recentDmg.reduce((a,e)=>a+e.dmg,0)>=PD.parryDamage){
-        target.parryOn=true;
-        addFloater(target.x,target.y-target.r-34,'PARRY UNLOCKED!','#9de7ff');
-      }
-    }
-    if(attacker && attacker.defKey==='boxing' && hasModifier(attacker,'champion') && !parryBypass){
-      const CD=DEFS.boxing;
-      if(attacker.lastHitClock!==undefined && meleeClock-attacker.lastHitClock<=CD.championWindow) attacker.champStacks=Math.min(CD.championMaxStacks,(attacker.champStacks||0)+1);
-      else attacker.champStacks=0;
-      dmg+=CD.championStep*(attacker.champStacks||0);
-      if(attacker.champReady){ dmg+=CD.championIdleDamage; applyStun(target,CD.championIdleStun); attacker.champReady=false; }
-      attacker.lastHitClock=meleeClock;
+    if(attacker && attacker.defKey==='boxing' && hasModifier(attacker,'unbeatable') && !parryBypass){
+      attacker.unbeatStacks=(attacker.unbeatStacks||[]).filter(t=>t>meleeClock);
+      dmg+=DEFS.boxing.unbeatStep*attacker.unbeatStacks.length;
     }
     if(target.cleaveMarkT>0){ dmg*=1.25; target.cleaveMarkT=0; addFloater(target.x,target.y-target.r-22,'MARK +25%','#ff3b4f'); }
     if(attacker && attacker.defKey==='boxing' && target.hp>0) playPunchSound();
@@ -3740,12 +3834,15 @@ function blessingOnDamage(u,dmg){
       if(dmg>D.negateThreshold) constructionWalls.forEach(w=>{ if(w.team===target.team) w.durability--; });
       dmg*=(1-D.negateChance);
     }
-    if(target.defKey==='boxing' && target.parryOn && attacker && attacker!==target && !parryBypass && !(target.shrineLockT>0)){
-      const pc=target.hp<target.maxhp*DEFS.boxing.parryLowHp?DEFS.boxing.parryChanceLow:DEFS.boxing.parryChance;
+    if(target.defKey==='boxing' && hasModifier(target,'untouchable') && attacker && attacker!==target && !parryBypass && !(target.shrineLockT>0) && dmg>0){
+      const pc=target.hp<target.maxhp*DEFS.boxing.parryLowHp?DEFS.boxing.untouchParryLow:DEFS.boxing.untouchParry;
       if(Math.random()<pc){
         addFloater(target.x,target.y-target.r-18,'PARRY!','#9de7ff');
-        if(dodgeSource){ dodgeSource.vx=-dodgeSource.vx; dodgeSource.vy=-dodgeSource.vy; }
-        else { parryBypass=true; dealDamage(target,attacker,dmg,null,true); parryBypass=false; }
+        // reflect the damage, a boxing punch's stun, and Parasma poison back at the attacker
+        const reflectStun=attacker.pendingStunDur||0;
+        parryBypass=true; dealDamage(target,attacker,dmg,null,true); parryBypass=false;
+        if(reflectStun>0) applyStun(attacker,reflectStun);
+        if(genOn(attacker,'parasma')){ attacker.poisonTicks=POISON_TICKS; attacker.poisonSrc=target; attacker.poisonDmg=hitIsRanged?POISON_RANGED:POISON_MELEE; }
         return false;
       }
     }
@@ -3783,6 +3880,35 @@ function blessingOnDamage(u,dmg){
     const damageTaken=Math.max(dealt,(target.damageTaken||0)-dt0);
     if(target.defKey==='megaphone' && damageTaken>0) megaphoneYell(target,damageTaken);
     countPocketeerDamage(target,shieldDamage+damageTaken);
+    if(dealt>0 && genOn(target,'bloodlust')){
+      target.bloodAcc=(target.bloodAcc||0)+dealt;
+      const step=BLOOD_STACK_HP*target.maxhp;
+      while(target.bloodAcc>=step){
+        target.bloodAcc-=step;
+        target.bloodPending=Math.min(BLOOD_CAP,(target.bloodPending||0)+BLOOD_PER_STACK);
+      }
+    }
+    if(dealt>0 && attacker && attacker.team!==target.team && !inPoisonTick && !parryBypass && genOn(attacker,'bloodlust') && (attacker.bloodPending||0)>0){
+      const steal=attacker.bloodPending; attacker.bloodPending=0;
+      bloodlustHeal(attacker, dealt*steal);
+    }
+    if(dealt>0 && attacker && attacker.team!==target.team && !inPoisonTick && !parryBypass && target.alive && target.hp>0 && genOn(attacker,'playingWithFire')){
+      const pc=target.hp<target.maxhp*0.5?0.01:0.005;
+      if(Math.random()<pc){
+        const tm=teams.find(t=>t.id===target.team);
+        if(tm) tm.pwfLost=true;
+        addFloater(target.x,target.y-target.r-26,'PLAYING WITH FIRE!','#ff7a3d');
+        log(`🧨 Playing with Fire! ${DEFS[target.defKey].name} goes up in flames.`, true);
+        target.hp=0; killCheck(target, attacker);
+      }
+    }
+    if(dealt>0 && attacker && attacker.defKey==='boxing' && !parryBypass){
+      attacker.lastLandedClock=meleeClock;
+      if(hasModifier(attacker,'unbeatable')) attacker.unbeatStacks=(attacker.unbeatStacks||[]).filter(t=>t>meleeClock).concat([meleeClock+DEFS.boxing.unbeatWindow]).slice(-DEFS.boxing.unbeatMaxStacks);
+    }
+    if(dealt>0 && !hitIsRanged && attacker && attacker.team!==target.team && !inPoisonTick && attacker.defKey!=='boxing' && genOn(attacker,'diabetes') && Math.random()<DIABETES_CHANCE){
+      attacker.attackDisabled=Math.max(attacker.attackDisabled||0,DIABETES_DELAY);
+    }
     if(r && dealt>0 && attacker && attacker.team!==target.team && !inPoisonTick){
       if(genOn(attacker,'parasma')){ target.poisonTicks=POISON_TICKS; target.poisonSrc=attacker; target.poisonDmg=hitIsRanged?POISON_RANGED:POISON_MELEE; }
       if(genOn(attacker,'fury')){ (attacker.furyTimers=attacker.furyTimers||[]).push(5); }
@@ -3921,6 +4047,7 @@ function blessingOnDamage(u,dmg){
     updateBaker(dt);
     updateJack(dt);
     updateBoxingExtras(dt);
+    updateSwap(dt);
     updateEquitation(dt);
     updateConstruction(dt);
     updateAlienWindup(dt);
@@ -3945,6 +4072,12 @@ function blessingOnDamage(u,dmg){
 
         if(unit.parryCd>0){ unit.parryCd = Math.max(0, unit.parryCd - dt); }
         if(unit.stunTimer>0) unit.stunTimer = Math.max(0, unit.stunTimer-dt);
+        if(unit.beerT>0){ unit.beerT=Math.max(0,unit.beerT-dt); if(unit.beerT<=0) unit.beerDmgBonus=0; }
+        if(genOn(unit,'diabetes') && unit.defKey!=='boxing'){
+          unit.diabetesSlowT=Math.max(0,(unit.diabetesSlowT||0)-dt);
+          unit.diabetesTick=(unit.diabetesTick||0)-dt;
+          if(unit.diabetesTick<=0){ unit.diabetesTick=1; unit.diabetesSlowT=1; }
+        }
         if(unit.passiveDisabled>0) unit.passiveDisabled = Math.max(0, unit.passiveDisabled-dt);
         if(unit.statusResist>0) unit.statusResist = Math.max(0, unit.statusResist-dt);
         if(unit.speedBoostTimer>0) unit.speedBoostTimer = Math.max(0, unit.speedBoostTimer-dt);
@@ -4019,6 +4152,7 @@ function blessingOnDamage(u,dmg){
         if(unit.defKey==='scythe' && unit.scytheKillStacks) moveFactor *= 1+0.025*unit.scytheKillStacks;
         if(unit.defKey==='scythe' && unit.scytheDamageBuffT>0) moveFactor *= 1.25;
         if(unit.defKey==='drunk' && unit.frenzy) moveFactor *= 1.33;
+        if(unit.beerT>0) moveFactor *= DEFS.drunk.beerSpeedMult;
         if(unit.speedBoostTimer>0 && unit.speedBoostAmount) moveFactor *= 1+unit.speedBoostAmount;
         if(unit.speedMultiplier) moveFactor *= unit.speedMultiplier;
         moveFactor *= genMoveMult(unit);
@@ -4046,6 +4180,7 @@ function blessingOnDamage(u,dmg){
           }
         }
 
+        if(unit.defKey==='boxing' && enemy && unit.stunTimer<=0) boxingSteer(unit,enemy);
         if(unit.stunTimer<=0){
           unit.x += unit.vx*dt*moveFactor;
           if(unit.defKey!=='gwnn') unit.y += unit.vy*dt*moveFactor;
@@ -4182,10 +4317,6 @@ function blessingOnDamage(u,dmg){
             unit.bleedTickTimer = 0.5;
             dealDamage(null, unit, unit.bleedDps*0.5, null, true);
           }
-        }
-        if(unit.defKey==='boxing'){
-          unit.boxingIdleTimer = (unit.boxingIdleTimer||0) + dt;
-          unit.chainTimer = Math.max(0, (unit.chainTimer||0) - dt);
         }
         const wasRecording = unit.cameraRecording>0;
         unit.cameraRecording=Math.max(0,unit.cameraRecording-dt);
@@ -4468,8 +4599,7 @@ function blessingOnDamage(u,dmg){
             }
           }
           if(unit.defKey==='pirate'){
-            let hx=unit.vx, hy=unit.vy; const hl=Math.hypot(hx,hy)||1; hx/=hl; hy/=hl;
-            const tx=target.x-unit.x, ty=target.y-unit.y, side=(-hy)*tx+hx*ty;   // >0: enemy on his right, <0: on his left
+            const tx=target.x-unit.x, ty=target.y-unit.y, side=tx;   // fixed sides: gun on his right (screen), sword on his left (screen)
             unit.cdCannon=(unit.cdCannon===undefined?Math.random()*1.5:unit.cdCannon)-dt;
             if(side>0 && unit.cdCannon<=0){
               unit.cdCannon=1.5; const base=Math.atan2(ty,tx);
@@ -4796,30 +4926,26 @@ function blessingOnDamage(u,dmg){
             dmg=dB2.punchDamage; stunDur=0.2; forceMult=1; kind='punch'; floaterText='';
           }
           if(kind==='uppercut'){ unit.uppercutT=0.35; unit.uppercutDir=target.x<unit.x?-1:1; }
-          if(hasModifier(unit,'chaining') && unit.chainStacks>0) dmg += unit.chainStacks*10;
-          const strongBlowReady = hasModifier(unit,'strongBlow') && (unit.boxingIdleTimer||0) >= 3;
-          if(strongBlowReady) dmg += 25;
+          const idleReady = hasModifier(unit,'unbeatable') && (meleeClock-(unit.lastLandedClock||0)) > DEFS.boxing.idleWindow;
+          if(idleReady){ dmg*=DEFS.boxing.idleDmgMult; stunDur=Math.max(stunDur,DEFS.boxing.idleStun); }
+          if(hasModifier(unit,'untouchable')) forceMult*=DEFS.boxing.untouchKb;
+          unit.pendingStunDur=stunDur;
           const hit=dealDamage(unit,target,dmg,null,false,forceMult);
+          unit.pendingStunDur=0;
           if(hit){
-            unit.boxingIdleTimer = 0;
-            let extraStun = strongBlowReady ? 0.25 : 0;
-            applyStun(target, stunDur+extraStun);
+            applyStun(target, stunDur);
             unit.swingTimer=0.16;
             unit.swingAngle=Math.atan2(target.y-unit.y,target.x-unit.x);
             unit.swingKind='boxing';
-            if(hasModifier(unit,'chaining')){
-              if(unit.chainTimer>0) unit.chainStacks=Math.min(5,(unit.chainStacks||0)+1);
-              else unit.chainStacks=0;
-              unit.chainTimer=0.4;
-            }
-            if(kind==='punch' && (strongBlowReady || Math.random()<DEFS.boxing.comboChance)){
+            if(hasModifier(unit,'unbeatable') && (kind==='punch' || kind==='uppercut' || kind==='downward strike')) boxingCleave(unit,target,dmg);
+            if(kind==='punch' && Math.random()<DEFS.boxing.comboChance){
               unit.comboQueue=DEFS.boxing.comboMin+Math.floor(Math.random()*(DEFS.boxing.comboMax-DEFS.boxing.comboMin+1));
               unit.comboTarget=target; unit.comboT=DEFS.boxing.comboGap;
               addFloater(target.x,target.y-target.r-34,'COMBO!','#ffb454');
             }
-            if(strongBlowReady){
-              addFloater(target.x, target.y-target.r-20, 'STRONG BLOW!', '#ff5b5b');
-              log(`🥊 Boxing Guy lands a Strong Blow ${kind}!`, true);
+            if(idleReady){
+              addFloater(target.x, target.y-target.r-20, 'UNBEATABLE!', '#ff5b5b');
+              log(`🥊 Boxing Guy lands an Unbeatable ${kind}!`, true);
             } else if(floaterText){
               addFloater(target.x, target.y-target.r-20, floaterText, '#ffb454');
               log(`🥊 Boxing Guy lands a ${kind}!`, true);
@@ -5155,6 +5281,8 @@ function blessingOnDamage(u,dmg){
             const dx=target.x-unit.x, dy=target.y-unit.y;
             const len=Math.hypot(dx,dy)||1;
             const beerCount = unit.defKey==='drunk' && unit.frenzy ? 2 : 1;
+            const beerBonus = unit.beerT>0 ? (unit.beerDmgBonus||0) : 0;
+            unit.beerDmgBonus=0;
             for(let beerIndex=0;beerIndex<beerCount;beerIndex++){
               const spread = beerCount===2 ? (beerIndex===0 ? -0.12 : 0.12) : 0;
               const cos=Math.cos(spread), sin=Math.sin(spread);
@@ -5162,7 +5290,7 @@ function blessingOnDamage(u,dmg){
                 x:unit.x,y:unit.y,
                 vx:(dx/len*cos-dy/len*sin)*dD.projSpeed,
                 vy:(dx/len*sin+dy/len*cos)*dD.projSpeed,
-                r:dD.projR, dmg:dD.damage, team:team.id, owner:unit,
+                r:dD.projR, dmg:dD.damage+beerBonus, team:team.id, owner:unit,
                 kind:unit.frenzy ? 'glassbeer' : 'beer'
               });
             }
@@ -5407,6 +5535,9 @@ function blessingOnDamage(u,dmg){
                 factorialIndex:unit.factorialIndex,fibonacciA:unit.fibonacciA,fibonacciB:unit.fibonacciB,fibonacciTotal:unit.fibonacciTotal,fibonacciRecent:unit.fibonacciRecent});
               Object.assign(unit,nativeAbilityState);
             }
+            if(genOn(unit,'diabetes') && nativeDefKey!=='boxing'){
+              for(let i=projectileStart;i<projectiles.length;i++){ if(projectiles[i].owner===unit && Math.random()<DIABETES_CHANCE) projectiles[i].delayT=DIABETES_DELAY; }
+            }
             unit.defKey=nativeDefKey;
             unit.modifiers=nativeModifiers;
           }
@@ -5524,6 +5655,7 @@ function blessingOnDamage(u,dmg){
         p.lTurns += 1;
         p.turnTimer = 0.38;
       }
+      if(p.delayT>0){ p.delayT=Math.max(0,p.delayT-dt); continue; }
       p.turnTimer = Math.max(0, (p.turnTimer || 0) - dt);
       p.x += p.vx*dt; p.y += p.vy*dt;
       if(p.x<BOX.left||p.x>BOX.right||p.y<BOX.top||p.y>BOX.bottom){
@@ -5603,6 +5735,10 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
           dodgeSource=null;
           if(p.kind === 'rook'){
             applyKnockback(p.owner, u, {x:p.vx,y:p.vy});
+          }
+          if(didHit && p.owner && p.owner.defKey==='drunk'){
+            p.owner.beerT=DEFS.drunk.beerTime; p.owner.beerDmgBonus=DEFS.drunk.beerDamage;
+            addFloater(p.owner.x,p.owner.y-p.owner.r-18,'GULP!','#ffd24a');
           }
           if(isCar && p.pierce){
             applyStun(u, 0.7);
@@ -6492,6 +6628,7 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
       makeTeam(selA, 'A', BOX.left+90, cy(), selectedModsA, Number(countASelect.value)),
       makeTeam(selB, 'B', BOX.right-90, cy(), selectedModsB, Number(countBSelect.value))
     ];
+    for(const t of teams){ if((t.id==='A'?selectedGeneralA:selectedGeneralB).pirated) spawnPirateMates(t); }
     const hpMult=mode==='sudden'?0.2:mode==='titan'?3:1;
     if(hpMult!==1||mode==='titan') for(const t of teams) for(const u of t.units){ u.hp*=hpMult; u.maxhp*=hpMult; if(mode==='titan') u.r*=1.25; }
     stats = newStats(); particles.length=0; shakeT=0; hitstop=0; slices.length=0; booms.length=0; zones.length=0; mines.length=0; syringes.length=0; clouds.length=0; timers.length=0; weatherEvents.length=0; windDebris.length=0; weatherHeadlineTimer=0; weatherHeadlineEl.style.display='none'; finalKill=null; impactT=0; camZ=1; barT=0; slowT=0; lastKillT=-9;
@@ -6528,6 +6665,8 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
       }
     }
 
+    swapTimer=0;
+    if(teams.some(t=>t.units.some(u=>u.defKey==='boxing' && genOn(u,'diabetes')))) setWeatherHeadline('boxing guy has parried the diabetes modifier, resuming');
     document.getElementById('setup').style.display='none';
     document.getElementById('arenaScreen').style.display='block';
 
