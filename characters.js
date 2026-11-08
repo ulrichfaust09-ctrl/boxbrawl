@@ -233,6 +233,20 @@
       },
       desc:'Cannons only on his right side (3 balls, 80 dmg each). A sword on his left swings every 0.45s for 70 dmg.'
     },
+    phoenix: {
+      key:'phoenix', name:'Phoenix Guy', emoji:'🐦‍🔥', maxhp:1000,
+      damage:25, fireRate:1, rebornFireRate:0.5, lifesteal:0.25, projSpeed:420, speed:150, r:50,
+      multStep:0.5, speedStep:0.08, objectTime:0.5,
+      guiltyChance:0.05, guiltyReborn:0.10, goodRetortChance:0.5,
+      goodSlow:0.25, goodSlowTime:1, badStun:0.33,
+      defenseShield:15, defenseShieldGood:25,
+      explodeDamage:100, explodeStep:50,
+      modifiers:{
+        guilty:{name:'Guilty', desc:'Each paper has a 5% chance to triple its damage (10% after rebirth). A tripled paper replaces the stack bonus for that paper but keeps his stacks'},
+        defense:{name:'Defense', desc:'After rebirth, landed papers grant a 15 HP shield (25 after a good retort) and +8% movement speed, stacking'}
+      },
+      desc:'Fires a stack of 3 papers every second. A paper that lands deals damage, makes him object for 0.5s and adds a +50% damage stack. A paper that misses resets his stacks. Each objection is a retort: good slows the foe 25% for 1s, bad stuns Phoenix for 0.33s. When he dies he is reborn once at 50% HP in a fire that hits the whole arena for 100 damage plus 50 per stack.'
+    },
     wizard: {
       key:'wizard', name:'Wizard Guy', emoji:'🧙‍♂️', maxhp:1000,
       damage:90, fireRate:1.3, projSpeed:380, speed:170, r:50,

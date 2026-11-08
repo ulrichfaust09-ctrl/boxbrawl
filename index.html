@@ -293,6 +293,8 @@
     transition:background .12s;
   }
   #pauseOverlay button:hover{background:rgba(232,176,75,.12);}
+  #pauseOverlay>div{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 0;max-width:92%;}
+  #pauseOverlay button{white-space:nowrap;}
 
   #log{
     position:absolute;left:820px;top:78px;width:calc(100% - 820px);height:800px;
@@ -460,15 +462,6 @@
         <canvas id="c" width="800" height="800"></canvas>
         <canvas id="killScene" width="200" height="200"></canvas>
         <div id="weatherHeadline" aria-live="polite"></div>
-        <div id="overlay">
-          <h2 id="overlayTitle">Victory</h2>
-          <p id="overlaySub"></p>
-          <div id="statsPanel"></div>
-          <div>
-            <button id="rematchBtn">Rematch</button>
-            <button id="changeBtn">Change Fighters</button>
-          </div>
-        </div>
         <div id="pauseOverlay" aria-label="Pause menu">
           <h2>Paused</h2>
           <p>Press Esc to resume</p>
@@ -476,6 +469,15 @@
             <button id="resumeBtn">Resume</button>
             <button id="pauseRematchBtn">Restart</button>
             <button id="pauseChangeBtn">Change Fighters</button>
+          </div>
+        </div>
+        <div id="overlay">
+          <h2 id="overlayTitle">Victory</h2>
+          <p id="overlaySub"></p>
+          <div id="statsPanel"></div>
+          <div>
+            <button id="rematchBtn">Rematch</button>
+            <button id="changeBtn">Change Fighters</button>
           </div>
         </div>
       </div>
@@ -511,195 +513,55 @@
   let selA = null, selB = null;
   let selectedModsA = {}, selectedModsB = {};
 
-  // ---- Intro: dot -> infinity -> "!?" -> solid oval -> galaxy -> zoom to Earth -> solar system -> Sun -> menu ----
+  // ---- Loading screen: blackhole logo, 3-stage bar, click to load in ----
 (function(){
-  const cv=document.createElement('canvas');
-  cv.id='intro';
-  cv.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:60;background:#000;';
-  document.body.appendChild(cv);
-  const cx=cv.getContext('2d');
-  let W=1,H=1,M=1,DPR=1;
-  let stars=[];
+  const wrap=document.createElement('div');
+  wrap.id='intro';
+  wrap.style.cssText='position:fixed;inset:0;z-index:60;background:#111a22;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;font-family:"Press Start 2P",monospace;color:#cfe6ff;transition:opacity .6s;';
+  wrap.innerHTML=`
+    <img id="introLogo" src="blackhole.png" alt="" style="width:min(90vw,600px);height:auto;pointer-events:none;">
+    <div style="width:min(80vw,440px);">
+      <div style="height:22px;background:#1b2633;border:3px solid #0b1118;box-sizing:border-box;">
+        <div id="introFill" style="height:100%;width:0%;background:#ff7a5c;"></div>
+      </div>
+      <div id="introStage" style="margin-top:16px;text-align:center;font-size:11px;letter-spacing:1px;min-height:14px;"></div>
+    </div>
+    <div id="introCta" style="font-size:11px;letter-spacing:1px;color:#ffd7a8;visibility:hidden;">Click to load in</div>
+    <div style="position:absolute;bottom:34px;font-size:10px;color:#8fb3d9;">provided by orange</div>`;
+  document.body.appendChild(wrap);
 
-  const rnd=(s)=>{ const x=Math.sin(s*127.1+311.7)*43758.5453; return x-Math.floor(x); };
-  const clamp01=v=>Math.max(0,Math.min(1,v));
-  const lerp=(a,b,k)=>a+(b-a)*k;
-  const outElastic=t=>{ t=clamp01(t); if(t===0||t===1) return t; const c=(2*Math.PI)/3; return Math.pow(2,-10*t)*Math.sin((t*10-0.75)*c)+1; };
-  const easeInOut=t=>{ t=clamp01(t); return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; };
-  const easeIn=t=>{ t=clamp01(t); return t*t*t; };
-  const easeOut=t=>{ t=clamp01(t); return 1-Math.pow(1-t,3); };
+  const fill=wrap.querySelector('#introFill'), stage=wrap.querySelector('#introStage'), cta=wrap.querySelector('#introCta');
+  const DURATION=4200;   // ms to reach 100% when everything is ready
+  let p=0, last=performance.now(), ready=false, done=false;
 
-  function resize(){
-    DPR=Math.min(2,window.devicePixelRatio||1); W=innerWidth; H=innerHeight; M=Math.min(W,H);
-    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
-    cx.setTransform(DPR,0,0,DPR,0,0);
-    stars=Array.from({length:150},(_,i)=>({x:rnd(i+1)*W, y:rnd(i+101)*H, s:0.6+rnd(i+201)*1.8, ph:rnd(i+301)*6.28}));
-  }
-
-  const BLUE='#5a00ff';
-  const DOT=BLUE;
-  const LEAD_R=28, SEED_R=20, STEM_W=18, STEM_H=92, GAP=22;
-  const TILT=-Math.PI/4;
-
-  // timeline (seconds)
-  const T={
-    appear:0.5, drawEnd:1.7, shrinkEnd:2.2, stemEnd:2.9,
-    tiltEnd:3.4, hookEnd:4.0, splitEnd:4.6,
-    fadeStart:5.6, fadeEnd:6.2
-  };
-
-  // ---- background: black with a few stars ----
-  function drawBackground(t){
-    cx.fillStyle='#000000'; cx.fillRect(0,0,W,H);
-  }
-
-  // ---- "!" and "?" ----
-  function roundRect(x,y,w,h,r){
-    r=Math.min(r,w/2,h/2);
-    cx.beginPath();
-    cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r);
-    cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath();
-  }
-  // "?" hook growing out of the dot at angle rot (grow 0..1 scales it out from the dot)
-  function drawHook(px,py,rot,grow,gap){
-    if(grow<=0) return;
-    const g=gap||0;
-    cx.save(); cx.translate(px,py); cx.rotate(rot); cx.scale(grow,grow);
-    cx.strokeStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
-    cx.lineWidth=STEM_W; cx.lineCap='round';
-    cx.beginPath(); cx.arc(0,-46-g,18,Math.PI,Math.PI*2.5,false); cx.lineTo(0,-16-g); cx.stroke();
-    cx.restore();
-  }
-  function drawDot(x,y){
-    cx.save(); cx.fillStyle=DOT; cx.shadowColor=DOT; cx.shadowBlur=26;
-    cx.beginPath(); cx.arc(x,y,SEED_R,0,Math.PI*2); cx.fill(); cx.restore();
-  }
-  // "!": seed dot at (px,py); the bar sits above it, `gap` apart
-  function drawBang(px,py,rot,stemH,alpha,sc,gap,showDot){
-    if(alpha<=0||sc<=0) return;
-    cx.save(); cx.translate(px,py); cx.rotate(rot); cx.scale(sc,sc); cx.globalAlpha=alpha;
-    cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
-    const bottom=-SEED_R*0.6-(gap||0);
-    if(stemH>0.5){ roundRect(-SEED_R,bottom-stemH,SEED_R*2,stemH,SEED_R); cx.fill(); }
-    if(showDot!==false){ cx.fillStyle=DOT; cx.shadowColor=DOT; cx.beginPath(); cx.arc(0,0,SEED_R,0,Math.PI*2); cx.fill(); }
-    cx.restore();
-  }
-  // "?": hook + stem + dot, the hook sits `gap` above the dot
-  function drawQuestion(px,py,rot,alpha,sc,gap,showDot){
-    if(alpha<=0||sc<=0) return;
-    const g=gap||0;
-    cx.save(); cx.translate(px,py); cx.rotate(rot); cx.scale(sc,sc); cx.globalAlpha=alpha;
-    cx.strokeStyle=BLUE; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=26;
-    cx.lineWidth=STEM_W; cx.lineCap='round';
-    cx.beginPath(); cx.arc(0,-46-g,18,Math.PI,Math.PI*2.5,false); cx.lineTo(0,-16-g); cx.stroke();
-    if(showDot!==false){ cx.fillStyle=DOT; cx.shadowColor=DOT; cx.beginPath(); cx.arc(0,0,SEED_R,0,Math.PI*2); cx.fill(); }
-    cx.restore();
-  }
-
-  // ---- Sun (flat style) ----
-  function drawSun(cxm,cym,R,alpha){
-    if(alpha<=0) return;
-    cx.save(); cx.globalAlpha=alpha;
-    cx.fillStyle='#ffd400'; cx.beginPath(); cx.arc(cxm,cym,R,0,Math.PI*2); cx.fill();
-    cx.save(); cx.beginPath(); cx.arc(cxm,cym,R*0.76,0,Math.PI*2); cx.clip();
-    cx.fillStyle='#ffffff'; cx.fillRect(cxm-R,cym-R,R*2,R*2);
-    cx.fillStyle='#fff5c8'; cx.beginPath(); cx.arc(cxm-R*0.12,cym+R*0.1,R*0.7,0,Math.PI*2); cx.fill();
-    cx.restore();
-    cx.restore();
-  }
-
-  // ---- first infinity sign ----
-  function curve(theta){
-    const A=M*0.2, cxm=W/2, cym=H/2;
-    const s=Math.sin(theta), c=Math.cos(theta), d=1+s*s;
-    return {x:cxm+A*c/d, y:cym+A*s*c/d};
-  }
-
-  let start=0, last=0, lead=null;
-  const ghosts=[];
+  const label=v=> v<33 ? 'Loading Game..' : v<66 ? 'Fetching Sprites..' : 'Finalizing and Launching..';
 
   function frame(now){
-    const t=(now-start)/1000;
-    const dt=Math.min(0.05,(now-last)/1000); last=now;
-    const cxm=W/2, cym=H/2;
-    drawBackground(t);
-    if(!lead) lead={x:cxm,y:cym};
-
-    // 1) infinity sign -> seed -> "!" grows -> tilts -> turns into "?" -> splits apart (the bar detaches)
-    if(t<T.fadeEnd){
-      let target, r;
-      if(t<T.appear){ target={x:cxm,y:cym}; r=LEAD_R*outElastic(t/T.appear)+0.001; }
-      else if(t<T.drawEnd){ target=curve(Math.PI/2+((t-T.appear)/(T.drawEnd-T.appear))*Math.PI*2); r=LEAD_R; }
-      else { target={x:cxm,y:cym}; r=LEAD_R-(LEAD_R-SEED_R)*easeInOut((t-T.drawEnd)/(T.shrinkEnd-T.drawEnd)); }
-      const k=1-Math.exp(-dt*(t<T.drawEnd?16:10));
-      lead.x+=(target.x-lead.x)*k; lead.y+=(target.y-lead.y)*k;
-      if(t>=T.appear && t<T.drawEnd){
-        const lg=ghosts[ghosts.length-1];
-        if(!lg || Math.hypot(lg.x-lead.x,lg.y-lead.y)>4) ghosts.push({x:lead.x,y:lead.y,r,t});
-      }
-      for(let i=ghosts.length-1;i>=0;i--) if(t-ghosts[i].t>0.33) ghosts.splice(i,1);
-      for(const gh of ghosts){
-        cx.save(); cx.globalAlpha=clamp01(1-(t-gh.t)/0.33)*0.5; cx.fillStyle=BLUE; cx.shadowColor=BLUE; cx.shadowBlur=12;
-        cx.beginPath(); cx.arc(gh.x,gh.y,gh.r,0,Math.PI*2); cx.fill(); cx.restore();
-      }
-      if(t<T.shrinkEnd){
-        cx.save(); cx.fillStyle=DOT; cx.shadowColor=DOT; cx.shadowBlur=28;
-        cx.beginPath(); cx.arc(lead.x,lead.y,r,0,Math.PI*2); cx.fill(); cx.restore();
-      }
-      if(t>=T.shrinkEnd){
-        const stemH=STEM_H*outElastic((t-T.shrinkEnd)/(T.stemEnd-T.shrinkEnd));
-        if(t<T.stemEnd){
-          // the "!" grows out of the dot
-          drawBang(cxm,cym,0,stemH,1,1,0);
-        } else if(t<T.tiltEnd){
-          // the "!" rotates 45 degrees counterclockwise, still attached to the dot
-          const p=easeInOut((t-T.stemEnd)/(T.tiltEnd-T.stemEnd));
-          drawBang(cxm,cym,-Math.PI/4*p,STEM_H,1,1,GAP*easeOut((t-T.stemEnd)/0.25));
-          drawDot(cxm,cym);
-        } else {
-          // the "?" stems out of the same dot, then the shared dot splits in two:
-          // the "!" keeps its dot down-right of the shared spot, the "?" keeps its dot down-left
-          const g=clamp01(easeOut((t-T.tiltEnd)/(T.hookEnd-T.tiltEnd)));
-          const s=easeInOut((t-T.hookEnd)/(T.splitEnd-T.hookEnd));
-          // the two dots pull apart sideways so they never overlap
-          const sep=28*s;
-          // after the split: "!" stays on the left, "?" moves right; both straighten and detach
-          const st=easeInOut((t-T.splitEnd)/0.4);
-          // the gap opens as soon as the split starts, so the marks never touch their dots
-          const gp=GAP*easeOut((t-T.stemEnd)/0.25);
-          drawBang(cxm-sep, cym, -Math.PI/4*(1-st), STEM_H, 1, 1, gp);
-          drawHook(cxm+sep, cym, Math.PI/4*(1-st), g, gp);
-          drawDot(cxm+sep, cym);
-        }
-      }
+    if(done) return;
+    const dt=now-last; last=now;
+    // the bar moves steadily, but holds at 99% until the page and fonts are actually ready
+    const cap = ready ? 100 : 99;
+    p=Math.min(cap, p+dt/DURATION*100);
+    fill.style.width=p.toFixed(1)+'%';
+    stage.textContent=label(p);
+    if(p>=100){
+      stage.textContent='Finalizing and Launching..';
+      cta.style.visibility='visible';
+      cta.animate([{opacity:1},{opacity:.25},{opacity:1}],{duration:1100,iterations:Infinity});
+      wrap.addEventListener('click', leave, {once:true});
+      done=true; return;
     }
-    if(t>=T.hookEnd){
-      // small credit line at the bottom
-      const ta=easeOut((t-T.hookEnd)/0.4);
-      cx.save(); cx.globalAlpha=ta; cx.fillStyle='#cfe6ff';
-      cx.font='14px "Press Start 2P", monospace'; cx.textAlign='center'; cx.textBaseline='middle';
-      cx.fillText('provided by orange', cxm, H-56);
-      cx.restore();
-    }
-
-    if(t>=T.fadeStart){
-      cv.style.opacity=String(1-easeInOut((t-T.fadeStart)/(T.fadeEnd-T.fadeStart)));
-    }
-    if(t<T.fadeEnd) requestAnimationFrame(frame);
-    else cv.remove();
-  }
-
-  function run(){
-    start=performance.now(); last=start;
     requestAnimationFrame(frame);
   }
-  resize(); addEventListener('resize',resize);
-  const begin=()=>{
-    const fonts=(document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
-    const pixel=(document.fonts && document.fonts.load) ? document.fonts.load('14px "Press Start 2P"') : Promise.resolve();
-    Promise.race([Promise.all([fonts,pixel]), new Promise(r=>setTimeout(r,800))]).then(run);
-  };
-  if(document.readyState==='complete') begin(); else addEventListener('load', begin);
+  function leave(){
+    wrap.style.opacity='0';
+    setTimeout(()=>wrap.remove(), 650);
+  }
+
+  const fontsReady=(document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  const pageReady=new Promise(res=> document.readyState==='complete' ? res() : addEventListener('load', res, {once:true}));
+  Promise.all([fontsReady, pageReady]).then(()=>{ ready=true; });
+  requestAnimationFrame(frame);
 })();
   const SET_ROWS=[['impact','💥 Impact frames','At 150+ damage the game freezes 0.5s with a black & white burst on the target'],
     ['speedVar','🏃 Differ movement speed','On contact / bounce, fighters get up to 25% faster or 10% slower'],
@@ -919,7 +781,7 @@
     dictator:'dictator.png', torch:'torchguy.png', woman:'woman.png', detective:'detective.png',
     chess:'chess.png', priest:'priest.png', ghost:'ghost.png', chef:'chef.png', doctor:'doctor.png',
     fireworks:'firework.png', manager:'manager.png', exploding:'exploding.png', sentient:'sentient.png',
-    football:'football.png', weatherman:'weatherman.png', pirate:'pirate.png'
+    football:'football.png', weatherman:'weatherman.png', pirate:'pirate.png', phoenix:'phoenixguy.png'
   };
   function buildCard(key, side){
     const d = DEFS[key];
@@ -1428,9 +1290,47 @@
       // hooks.onDeath in characters.js (e.g. a companion going rogue).
       const deathHook = getCharHook(unit.defKey, 'onDeath');
       if(deathHook) deathHook({unit, killer, addFloater, log});
+      if(unit.defKey==='phoenix' && !unit.rebirthed) phoenixRebirth(unit);
     }
   }
 
+  // ---- Phoenix Guy: paper stacks, objections, retorts, one rebirth ----
+  function firePhoenixStack(u,target,team){
+    const P=DEFS.phoenix, a=Math.atan2(target.y-u.y,target.x-u.x);
+    const chance=u.rebirthed?P.guiltyReborn:P.guiltyChance;
+    const guilty=hasModifier(u,'guilty') && Math.random()<chance;
+    const dmg=guilty ? P.damage*3 : P.damage*(1+P.multStep*(u.phoenixStacks||0));   // guilty replaces the stack bonus for this paper, stacks are kept
+    projectiles.push({x:u.x,y:u.y,vx:Math.cos(a)*P.projSpeed,vy:Math.sin(a)*P.projSpeed,r:12,dmg,team:team.id,owner:u,kind:'phoenixPaper',emoji:'📑'});
+  }
+  function phoenixOnHit(u,target,p){
+    const P=DEFS.phoenix;
+    p.landed=true;
+    if(!u.alive) return;
+    u.phoenixStacks=(u.phoenixStacks||0)+1;
+    if(u.rebirthed && p.dmg>0){ u.hp=Math.min(u.maxhp,u.hp+p.dmg*P.lifesteal); }   // reborn Phoenix heals 25% of the damage his papers deal
+    u.objectT=P.objectTime; u.objectFlip=target.x<u.x;
+    const good=Math.random()<P.goodRetortChance;
+    if(good){
+      target.slowT=Math.max(target.slowT||0,P.goodSlowTime); target.slowAmt=P.goodSlow;
+      addFloater(u.x,u.y-u.r-40,'GOOD RETORT!','#7dff9a');
+    } else {
+      applyStun(u,P.badStun);
+      addFloater(u.x,u.y-u.r-40,'BAD RETORT!','#ff5b5b');
+    }
+    if(u.rebirthed && hasModifier(u,'defense')){
+      u.shield=(u.shield||0)+(good?P.defenseShieldGood:P.defenseShield);
+      u.phoenixSpeedStacks=(u.phoenixSpeedStacks||0)+1;
+    }
+  }
+  function phoenixRebirth(u){
+    const P=DEFS.phoenix, stacks=u.phoenixStacks||0, dmg=P.explodeDamage+P.explodeStep*stacks;
+    u.rebirthed=true; u.phoenixStacks=0; u.objectT=0; u.stunTimer=0;
+    u.alive=true; u.hp=u.maxhp*0.5;
+    burst(u.x,u.y,['#ff7a1a','#ffd24a'],30,260,8,0.6);
+    log(`🔥 Phoenix Guy is reborn in a fire for ${dmg} damage!`,true);
+    for(const t of teams) for(const e of t.units){ if(e===u || !e.alive) continue; dealDamage(u,e,dmg,null,true); }
+    u.phoenixStacks=1;   // the rebirth itself gives his next attack a stack
+  }
   function armBomb(unit){
     if(!unit || unit.defKey!=='exploding' || unit.bombArmed || !unit.alive) return;
     unit.bombArmed = true;
@@ -3158,8 +3058,10 @@
     }
   }
   // ---- Sprites for: tired, poker, drunk, blacksmith, magician, pingpong, gravity ----
+  const OBJ_IMG=Object.assign(new Image(),{src:'objection.png'});
   const GEN_SPR={
     pirate:Object.assign(new Image(),{src:'pirate.png'}),
+    phoenix:Object.assign(new Image(),{src:'phoenixguy.png'}),
     tired:Object.assign(new Image(),{src:'tiredguy.png'}),
     poker:Object.assign(new Image(),{src:'pokerguy.png'}),
     drunk:Object.assign(new Image(),{src:'drunkguy.png'}),
@@ -3619,6 +3521,18 @@ if(u.slowT>0){ u.slowT-=dt; if(u.slowT<=0) u.slowAmt=0; }
       ctx.fillText(debris.emoji,0,0); ctx.restore();
     }
     for(const t of teams) for(const u of t.units){
+      if(!u.alive||u.defKey!=='phoenix'||!(u.objectT>0)||!(OBJ_IMG.complete&&OBJ_IMG.naturalWidth>0)) continue;
+      // full-arena objection: covers the whole canvas, flipped when the enemy is on Phoenix's left
+      // fit the whole picture inside the arena (no stretching), centered, flipped when the enemy is on Phoenix's left
+      const cw=ctx.canvas.width, ch=ctx.canvas.height, iw=OBJ_IMG.naturalWidth, ih=OBJ_IMG.naturalHeight;
+      const sc=Math.min(cw/iw, ch/ih), dw=iw*sc, dh=ih*sc, dx=(cw-dw)/2, dy=(ch-dh)/2;
+      ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle='rgba(8,6,12,.55)'; ctx.fillRect(0,0,cw,ch);
+      if(u.objectFlip){ ctx.translate(cw,0); ctx.scale(-1,1); ctx.drawImage(OBJ_IMG,cw-dx-dw,dy,dw,dh); }
+      else ctx.drawImage(OBJ_IMG,dx,dy,dw,dh);
+      ctx.restore();
+    }
+    for(const t of teams) for(const u of t.units){
       if(!u.alive||u.defKey!=='pirate'||u.hideTimer>0) continue;
       const sw=u.swordT>0?1-u.swordT/0.2:0, la=Math.PI, ang=la+(u.swordT>0?(sw-0.5)*2.0:0);
       ctx.save(); ctx.translate(u.x+Math.cos(ang)*(u.r+6),u.y+Math.sin(ang)*(u.r+6)); ctx.rotate(ang+Math.PI/4);
@@ -3773,6 +3687,7 @@ if(u.slowT>0){ u.slowT-=dt; if(u.slowT<=0) u.slowAmt=0; }
   if(u.chaosT>0) m*=1.75;
   if(u.slowT>0) m*=1-u.slowAmt;
   if(u.diabetesSlowT>0) m*=1-DIABETES_SLOW;
+  if(u.phoenixSpeedStacks) m*=1+DEFS.phoenix.speedStep*u.phoenixSpeedStacks;
   if(genOn(u,'blessing5') && u.shield>0) m*=1.25;
   return m;
 }
@@ -4610,6 +4525,11 @@ function blessingOnDamage(u,dmg){
             if(side<0 && unit.cdSword<=0 && dist(unit,target)-(unit.r+target.r)<=90){
               unit.cdSword=0.45; unit.swordT=0.2; dealDamage(unit,target,70+(m('cutlass')?30:0),null,true);
             }
+          }
+          if(unit.defKey==='phoenix'){
+            unit.objectT=Math.max(0,(unit.objectT||0)-dt);
+            unit.cdPaper=(unit.cdPaper===undefined?0:unit.cdPaper)-dt;
+            if(unit.objectT<=0 && unit.cdPaper<=0){ unit.cdPaper=unit.rebirthed?DEFS.phoenix.rebornFireRate:DEFS.phoenix.fireRate; firePhoenixStack(unit,target,team); }
           }
           if(unit.defKey==='poker'){
             unit.cdPk=(unit.cdPk===undefined?Math.random():unit.cdPk)-dt;
@@ -5667,6 +5587,7 @@ function blessingOnDamage(u,dmg){
           p.x=clamp(p.x,BOX.left,BOX.right); p.y=clamp(p.y,BOX.top,BOX.bottom);
           p.stuck=true; p.stuckTarget=null; log(`🔪 Chef knife sticks to the wall!`); continue;
         }
+        if(p.kind==='phoenixPaper' && p.owner && !p.landed) p.owner.phoenixStacks=0;
         if(p.kind==='nailPolish' && p.owner && !projectileHasModifier(p, 'skinCare')) p.owner.womanStacks = 0;
         if(p.kind==='suitcase' || p.kind==='bossSuitcase' || p.kind==='bossBonus'){
           spawnPapers(clamp(p.x,BOX.left,BOX.right), clamp(p.y,BOX.top,BOX.bottom), p.team, p.owner, p.kind==='bossSuitcase' ? 16 : 8);
@@ -5677,6 +5598,7 @@ function blessingOnDamage(u,dmg){
         projectiles.splice(i,1); continue;
       }
       const hitWall=wallHitBy(p.x,p.y,p.r||6,p.team);
+      if(hitWall && p.kind==='phoenixPaper' && p.owner && !p.landed) p.owner.phoenixStacks=0;
       if(hitWall){
         hitWall.durability--;
         if(p.x<hitWall.x-hitWall.w/2 || p.x>hitWall.x+hitWall.w/2) p.vx=-p.vx; else p.vy=-p.vy;
@@ -5736,6 +5658,7 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
           if(p.kind === 'rook'){
             applyKnockback(p.owner, u, {x:p.vx,y:p.vy});
           }
+          if(didHit && p.kind==='phoenixPaper' && p.owner && p.owner.defKey==='phoenix') phoenixOnHit(p.owner,u,p);
           if(didHit && p.owner && p.owner.defKey==='drunk'){
             p.owner.beerT=DEFS.drunk.beerTime; p.owner.beerDmgBonus=DEFS.drunk.beerDamage;
             addFloater(p.owner.x,p.owner.y-p.owner.r-18,'GULP!','#ffd24a');
