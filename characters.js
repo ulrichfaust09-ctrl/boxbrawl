@@ -75,7 +75,12 @@
       key:'blacksmith', name:'Blacksmith Guy', emoji:'🔨', maxhp:1000,
       damage:10, fireRate:1.2, meleeRange:84, nearRange:193,
       forgeInterval:0.75, forgeGain:10,
-      tbPart:15, tbForgeGain:10, tbRebuildForges:5, hammerCd:2, hammerFrac:0.5, zapCd:1.66, zapFrac:0.25,
+      tbCdMult:2, tbGainBonus:5, stealMult:0.25, stealDur:2, stealCd:4,
+      tbPart:15, tbForgeGain:10, tbRebuildForges:5, hammerCd:2, hammerFrac:0.5,
+      hammerRange:520, hammerSlowMax:0.85, hammerSlowRampTime:0.6, hammerSlowLinger:0.5,
+      zapTickTime:0.1, zapTickSlow:0.05, zapHoldTime:0.75, zapKnockback:2.5, zapPassiveOff:1.25,
+      sparkThreshold:150, collideChance:0.05, collideChanceHigh:0.2,
+      skyChance:0.05, skyChanceHigh:0.10, skyDamage:90, skyDisable:1,
       modifiers:{
         forgery:{name:'Forgery', desc:'+5 forge bonus damage, -20% forge cooldown'},
         multitasking:{name:'Multitasking', desc:'Keeps forging while attacking'},
@@ -598,16 +603,15 @@
       punchDamage:80, uppercutDamage:120, downDamage:90,
       fireRate:0.6, meleeRange:98,
       dodgeBase:0.175, dodgePerChunk:0.10, dodgeHpChunk:33,
-      streakForCombo:4, untouchParry:0.25, untouchParryLow:0.5, parryLowHp:0.5, untouchKb:1.5, untouchWindow:1,
+      streakForCombo:10, streakComboChance:0.5, untouchParry:0.25, untouchParryLow:0.5, parryLowHp:0.5, untouchKb:1.5, untouchWindow:1,
       unbeatStep:5, unbeatWindow:3, unbeatMaxStacks:10, idleWindow:3, idleDmgMult:1.25, idleStun:0.33, cleaveArc:1.2,
-      followSafeGap:140, followResumeGap:200, lowHpBias:220,
       dodgeChance:0.5, dodgePush:260, dodgeStep:70, blockDuration:0.75, dodgeStun:0.75, blockStart:0.3, blockEnd:0.6, blockCooldown:2, reactWindow:0.25, comboChance:0.5, comboMin:5, comboMax:10, comboGap:0.08,
       speed:180, r:52,
       modifiers:{
         untouchable:{name:'Untouchable', desc:'After landing a combo, dodge rate is 100% for 1s (no stacking). Attacks deal 50% more knockback. Unlocks Parry: every attack taken or dodged has a 25% chance to parry (50% below 50% HP), reflecting its damage and debuffs back at the attacker'},
         unbeatable:{name:'Unbeatable', desc:'Each successful attack adds a combo stack lasting 3s (max 10). Each stack adds +5 damage to the next attack. After 3s without landing a hit, the next attack deals +25% damage and stuns for 0.33s. Main punches cleave: they also hit every other foe in front of him within reach'}
       },
-      desc:'DODGE! 50% to slip any hit. REACT! strikes first when a melee foe is about to hit. COMBO! base punches can flurry into 5-10 more punches, and after 4 punches in a row without a combo, the next punch always combos. Punches every 0.6s when near, chaining hit after hit, with brief stun and a knockback. Catch a foe above him and he uppercuts for 120 dmg, sending them flying; catch one below and he strikes downward for 90 dmg with a longer stun. Against incoming projectiles he has a 17.5% chance to dodge and step clear, rising 10% for every 33% of his HP he has lost. Above 50% HP he always chases a foe (the lowest HP, unless that foe is much farther than the closest). At 50% HP or less he chases only until he has a safe gap, then holds his ground.'
+      desc:'DODGE! 50% to slip any hit. REACT! strikes first when a melee foe is about to hit. COMBO! base punches can flurry into 5-10 more punches, and after 10 punches in a row without a combo, each punch has a 50% chance to combo. Punches every 0.6s when near, chaining hit after hit, with brief stun and a knockback. Catch a foe above him and he uppercuts for 120 dmg, sending them flying; catch one below and he strikes downward for 90 dmg with a longer stun. Against incoming projectiles he has a 17.5% chance to dodge and step clear, rising 10% for every 33% of his HP he has lost.'
     },
     referee: {
       key:'referee', name:'Referee Guy', emoji:'🟨', maxhp:1000,
