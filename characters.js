@@ -75,9 +75,11 @@
       key:'blacksmith', name:'Blacksmith Guy', emoji:'🔨', maxhp:1000,
       damage:10, fireRate:1.2, meleeRange:84, nearRange:193,
       forgeInterval:0.75, forgeGain:10,
+      tbPart:15, tbForgeGain:10, tbRebuildForges:5, hammerCd:2, hammerFrac:0.5, zapCd:1.66, zapFrac:0.25,
       modifiers:{
         forgery:{name:'Forgery', desc:'+5 forge bonus damage, -20% forge cooldown'},
-        multitasking:{name:'Multitasking', desc:'Keeps forging while attacking'}
+        multitasking:{name:'Multitasking', desc:'Keeps forging while attacking'},
+        trueBlacksmith:{name:'True Blacksmith', desc:'Has a 15 HP shield and a 15 HP helmet (30 HP total). Each forge adds 10 HP to both. A broken piece rebuilds after 5 forges. Far away he throws his hammer (50% of forge damage, 2s cd) which returns to him. In mid range he zaps with the hammer (25% of forge damage, 1.66s cd)'}
       },
       speed:170, r:54,
       desc:'10 dmg / 1.2s. Forges a better blade when not near a foe: +10 dmg every 0.75s.'
@@ -232,6 +234,22 @@
         cutlass:{name:'Sharpened Cutlass', desc:'Sword swings deal +30 damage'}
       },
       desc:'Cannons only on his right side (3 balls, 80 dmg each). A sword on his left swings every 0.45s for 70 dmg.'
+    },
+    cat: {
+      key:'cat', name:'Cat', emoji:'🐱', maxhp:1000,
+      damage:0, fireRate:0.5, speed:170, r:50,
+      reach:110, pulseDmg:9999, pulseCd:0.5, rollCd:1, rollSpeed:620, rollMax:3,
+      modifiers:{
+        rollingKitty:{name:'Rolling Kitty', desc:'Once angry, rolls at the nearest enemy (spinning) until it hits a unit or a wall, then one-shots everything near it. 1s cooldown instead of the 0.5s slash'},
+        sleepy:{name:'Sleepy Kitty', desc:'Stays asleep and passive. Any damage aimed at it is reflected back at the attacker, +50%'}
+      },
+      desc:'Deals no damage until it takes damage. Then it turns red and one-shots anything within reach every 0.5s.'
+    },
+    dummy: {
+      key:'dummy', name:'Dummy Guy', emoji:'🎯', maxhp:100000,
+      damage:0, fireRate:999, speed:0, r:50,
+      modifiers:{},
+      desc:'A training dummy that never fights back. Shows live stats: 5s DPS, average DPS, total damage, hits, max hit, average hit and time.'
     },
     phoenix: {
       key:'phoenix', name:'Phoenix Guy', emoji:'🐦‍🔥', maxhp:1000,
@@ -580,7 +598,7 @@
       punchDamage:80, uppercutDamage:120, downDamage:90,
       fireRate:0.6, meleeRange:98,
       dodgeBase:0.175, dodgePerChunk:0.10, dodgeHpChunk:33,
-      untouchParry:0.25, untouchParryLow:0.5, parryLowHp:0.5, untouchKb:1.5, untouchWindow:1,
+      streakForCombo:4, untouchParry:0.25, untouchParryLow:0.5, parryLowHp:0.5, untouchKb:1.5, untouchWindow:1,
       unbeatStep:5, unbeatWindow:3, unbeatMaxStacks:10, idleWindow:3, idleDmgMult:1.25, idleStun:0.33, cleaveArc:1.2,
       followSafeGap:140, followResumeGap:200, lowHpBias:220,
       dodgeChance:0.5, dodgePush:260, dodgeStep:70, blockDuration:0.75, dodgeStun:0.75, blockStart:0.3, blockEnd:0.6, blockCooldown:2, reactWindow:0.25, comboChance:0.5, comboMin:5, comboMax:10, comboGap:0.08,
@@ -589,7 +607,7 @@
         untouchable:{name:'Untouchable', desc:'After landing a combo, dodge rate is 100% for 1s (no stacking). Attacks deal 50% more knockback. Unlocks Parry: every attack taken or dodged has a 25% chance to parry (50% below 50% HP), reflecting its damage and debuffs back at the attacker'},
         unbeatable:{name:'Unbeatable', desc:'Each successful attack adds a combo stack lasting 3s (max 10). Each stack adds +5 damage to the next attack. After 3s without landing a hit, the next attack deals +25% damage and stuns for 0.33s. Main punches cleave: they also hit every other foe in front of him within reach'}
       },
-      desc:'DODGE! 50% to slip any hit. REACT! strikes first when a melee foe is about to hit. COMBO! base punches can flurry into 5-10 more punches. Punches every 0.6s when near, chaining hit after hit, with brief stun and a knockback. Catch a foe above him and he uppercuts for 120 dmg, sending them flying; catch one below and he strikes downward for 90 dmg with a longer stun. Against incoming projectiles he has a 17.5% chance to dodge and step clear, rising 10% for every 33% of his HP he has lost. Above 50% HP he always chases a foe (the lowest HP, unless that foe is much farther than the closest). At 50% HP or less he chases only until he has a safe gap, then holds his ground.'
+      desc:'DODGE! 50% to slip any hit. REACT! strikes first when a melee foe is about to hit. COMBO! base punches can flurry into 5-10 more punches, and after 4 punches in a row without a combo, the next punch always combos. Punches every 0.6s when near, chaining hit after hit, with brief stun and a knockback. Catch a foe above him and he uppercuts for 120 dmg, sending them flying; catch one below and he strikes downward for 90 dmg with a longer stun. Against incoming projectiles he has a 17.5% chance to dodge and step clear, rising 10% for every 33% of his HP he has lost. Above 50% HP he always chases a foe (the lowest HP, unless that foe is much farther than the closest). At 50% HP or less he chases only until he has a safe gap, then holds his ground.'
     },
     referee: {
       key:'referee', name:'Referee Guy', emoji:'🟨', maxhp:1000,
@@ -611,16 +629,6 @@
         thorns:{name:'Thorns', desc:'The thorn burst leaves a bleed dealing 15 dmg/s for 3s'}
       },
       desc:"Plants a seed on the target's spot every 3s. After a second it bursts into thorns, dealing 90 dmg to anyone caught nearby."
-    },
-    parry: {
-      key:'parry', name:'Parry Guy', emoji:'🥋', maxhp:1000,
-      parryCooldown:2.5,
-      modifiers:{
-        trickshot:{name:'Trickshot', desc:'+25% move speed. Parried hits are reflected for +50% damage'},
-        successfulParry:{name:'Successful Parry', desc:'Successful parries heal 25 HP'}
-      },
-      speed:170, r:52,
-      desc:'No normal attack. Every 2.5s of cooldown, the next hit or projectile aimed at him gets parried entirely — negated and reflected straight back at full damage (no bonus).'
     },
     grandmama: {
       key:'grandmama', name:'Grandmama', emoji:'👵', maxhp:1000, speed:150, r:50,

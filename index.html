@@ -781,7 +781,7 @@
     dictator:'dictator.png', torch:'torchguy.png', woman:'woman.png', detective:'detective.png',
     chess:'chess.png', priest:'priest.png', ghost:'ghost.png', chef:'chef.png', doctor:'doctor.png',
     fireworks:'firework.png', manager:'manager.png', exploding:'exploding.png', sentient:'sentient.png',
-    football:'football.png', weatherman:'weatherman.png', pirate:'pirate.png', phoenix:'phoenixguy.png'
+    football:'football.png', weatherman:'weatherman.png', pirate:'pirate.png', phoenix:'phoenixguy.png', cat:'cat.png', dummy:'dummy.png'
   };
   function buildCard(key, side){
     const d = DEFS[key];
@@ -1330,6 +1330,145 @@
     log(`🔥 Phoenix Guy is reborn in a fire for ${dmg} damage!`,true);
     for(const t of teams) for(const e of t.units){ if(e===u || !e.alive) continue; dealDamage(u,e,dmg,null,true); }
     u.phoenixStacks=1;   // the rebirth itself gives his next attack a stack
+  }
+  // ---- Cat: one-shot slash, rolling attack, dummy stats ----
+  function catPulse(u){
+    const foes=teams.find(t=>t.id!==u.team); if(!foes) return;
+    u.catSlashT=0.15;
+    for(const e of aliveUnits(foes)){
+      if(dist(u,e)-(u.r+e.r)>DEFS.cat.reach) continue;
+      dealDamage(u,e,DEFS.cat.pulseDmg,null,true);
+    }
+  }
+  function updateCat(dt){
+    for(const tm of teams) for(const u of tm.units){
+      if(u.defKey!=='cat' || !u.alive || !(u.rollT>0)) continue;
+      const C=DEFS.cat;
+      u.rollT-=dt; u.rollAng=(u.rollAng||0)+dt*15;
+      u.vx=Math.cos(u.rollDir)*C.rollSpeed; u.vy=Math.sin(u.rollDir)*C.rollSpeed;
+      let stop=u.rollT<=0;
+      const foes=teams.find(t=>t.id!==tm.id);
+      if(foes) for(const e of aliveUnits(foes)){ if(dist(u,e)<=u.r+e.r+4){ stop=true; break; } }
+      if(u.x<=BOX.left+u.r+2 || u.x>=BOX.right-u.r-2 || u.y<=BOX.top+u.r+2 || u.y>=BOX.bottom-u.r-2) stop=true;
+      if(stop){ u.rollT=0; catPulse(u); }
+    }
+  }
+  function drawCat(u){
+    const img=hasModifier(u,'sleepy') ? SLEEP_IMG : GEN_SPR.cat;
+    const size=u.r*2.2;
+    ctx.save(); ctx.translate(u.x,u.y);
+    if(u.rollT>0) ctx.rotate(u.rollAng||0);
+    if(img.complete && img.naturalWidth>0) ctx.drawImage(img,-size/2,-size/2,size,size);
+    else { ctx.font=`${u.r*1.5}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🐱',0,1); }
+    if(u.catAngry && !hasModifier(u,'sleepy')){
+      ctx.strokeStyle='rgba(255,70,70,.9)'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(0,0,u.r*1.05,0,Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // dummy stats are queued and drawn on the full-resolution screen canvas, so the text stays sharp
+  let dummyQueue=[];
+  function drawDummyStats(u){
+    const t=meleeClock-(u.statFirst===undefined?meleeClock:u.statFirst);
+    const recent=(u.statLog||[]).filter(e=>meleeClock-e[0]<=5);
+    const sum5=recent.reduce((a,e)=>a+e[1],0);
+    const dps5=sum5/Math.min(5,Math.max(1,t));
+    const total=u.statTotal||0, hits=u.statHits||0;
+    const avg=hits?total/hits:0, dpsAll=t>0?total/t:0;
+    const lines=[`DPS (5s): ${dps5.toFixed(0)}`,`DPS (avg): ${dpsAll.toFixed(0)}`,`Total: ${total}`,`Hits: ${hits}`,`Max hit: ${u.statMax||0}`,`Avg hit: ${avg.toFixed(0)}`,`Time: ${t.toFixed(1)}s`];
+    const m=ctx.getTransform();
+    const ax=(m.a*(u.x+u.r+12)+m.c*(u.y-u.r-10)+m.e)*PIX;
+    const ay=(m.b*(u.x+u.r+12)+m.d*(u.y-u.r-10)+m.f)*PIX;
+    const sc=Math.abs(m.a)*PIX;
+    dummyQueue.push({x:ax,y:ay,s:sc,lines});
+  }
+  function flushDummyStats(){
+    for(const d of dummyQueue){
+      const s=d.s, pad=8*s, lh=15*s, w=158*s, hgt=d.lines.length*lh+12*s;
+      screenCtx.save(); screenCtx.setTransform(1,0,0,1,0,0);
+      screenCtx.fillStyle='rgba(8,6,12,.82)'; screenCtx.fillRect(d.x,d.y,w,hgt);
+      screenCtx.strokeStyle='#7fd1ff'; screenCtx.lineWidth=Math.max(1,s); screenCtx.strokeRect(d.x,d.y,w,hgt);
+      screenCtx.font=`bold ${Math.round(11*s)}px monospace`; screenCtx.textAlign='left'; screenCtx.textBaseline='top';
+      screenCtx.fillStyle='#e8f6ff';
+      d.lines.forEach((t,i)=>screenCtx.fillText(t,d.x+pad,d.y+6*s+i*lh));
+      screenCtx.restore();
+    }
+    dummyQueue.length=0;
+  }
+  // ---- True Blacksmith: shield + helmet, forge growth, hammer throw and zap ----
+  const hammers=[], hamZaps=[];
+  function tbInit(u){
+    if(u.bsShield!==undefined) return;
+    const P=DEFS.blacksmith.tbPart;
+    u.bsShield=P; u.bsShieldMax=P; u.bsHelmet=P; u.bsHelmetMax=P;
+  }
+  function tbForge(u){
+    tbInit(u);
+    const G=DEFS.blacksmith.tbForgeGain, N=DEFS.blacksmith.tbRebuildForges;
+    for(const part of ['Shield','Helmet']){
+      if(u['bs'+part+'Broken']){
+        u['bs'+part+'Count']=(u['bs'+part+'Count']||0)+1;
+        if(u['bs'+part+'Count']>=N){
+          u['bs'+part+'Broken']=false; u['bs'+part+'Count']=0;
+          u['bs'+part+'Max']+=G; u['bs'+part]=u['bs'+part+'Max'];
+          addFloater(u.x,u.y-u.r-30,part.toUpperCase()+' REBUILT!','#9be85a');
+        }
+      } else {
+        u['bs'+part+'Max']+=G; u['bs'+part]+=G;
+      }
+    }
+  }
+  function throwHammer(unit,target,dmg){
+    const L=Math.hypot(target.x-unit.x,target.y-unit.y)||1;
+    unit.hammerOut=true;
+    hammers.push({x:unit.x,y:unit.y,vx:(target.x-unit.x)/L*520,vy:(target.y-unit.y)/L*520,owner:unit,team:unit.team,dmg,returning:false,hit:[],travelled:0,spin:0});
+  }
+  function zapHammer(unit,target,dmg){
+    hamZaps.push({x1:unit.x,y1:unit.y,x2:target.x,y2:target.y,life:0.2});
+    dealDamage(unit,target,dmg,null,true);
+    addFloater(target.x,target.y-target.r-24,'ZAP!','#ffe36b');
+  }
+  function updateHammers(dt){
+    for(let i=hammers.length-1;i>=0;i--){
+      const hm=hammers[i], o=hm.owner;
+      if(!o.alive){ hammers.splice(i,1); continue; }
+      hm.spin+=dt*14;
+      if(!hm.returning){
+        hm.x+=hm.vx*dt; hm.y+=hm.vy*dt; hm.travelled+=Math.hypot(hm.vx,hm.vy)*dt;
+        const foes=teams.find(t=>t.id!==hm.team);
+        if(foes) for(const e of aliveUnits(foes)){
+          if(hm.hit.includes(e)) continue;
+          if(Math.hypot(e.x-hm.x,e.y-hm.y)<=e.r+12){
+            hm.hit.push(e);
+            dealDamage(o,e,hm.dmg,null,true);
+            hm.returning=true; break;
+          }
+        }
+        if(!hm.returning && (hm.travelled>=260 || hm.x<BOX.left||hm.x>BOX.right||hm.y<BOX.top||hm.y>BOX.bottom)) hm.returning=true;
+      } else {
+        const dx=o.x-hm.x, dy=o.y-hm.y, L=Math.hypot(dx,dy)||1;
+        hm.x+=dx/L*600*dt; hm.y+=dy/L*600*dt;
+        if(L<=o.r+12){ o.hammerOut=false; hammers.splice(i,1); }
+      }
+    }
+    for(let i=hamZaps.length-1;i>=0;i--){ hamZaps[i].life-=dt; if(hamZaps[i].life<=0) hamZaps.splice(i,1); }
+  }
+  function drawHammers(){
+    for(const hm of hammers){
+      ctx.save(); ctx.translate(hm.x,hm.y); ctx.rotate(hm.spin);
+      ctx.font='24px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔨',0,0);
+      ctx.restore();
+    }
+    for(const z of hamZaps){
+      ctx.save(); ctx.strokeStyle='#ffe36b'; ctx.lineWidth=3; ctx.globalAlpha=Math.min(1,z.life/0.2);
+      ctx.beginPath(); ctx.moveTo(z.x1,z.y1);
+      const segs=6;
+      for(let k=1;k<segs;k++){
+        const t=k/segs, off=(k%2?1:-1)*8;
+        ctx.lineTo(z.x1+(z.x2-z.x1)*t+off, z.y1+(z.y2-z.y1)*t-off);
+      }
+      ctx.lineTo(z.x2,z.y2); ctx.stroke(); ctx.restore();
+    }
   }
   function armBomb(unit){
     if(!unit || unit.defKey!=='exploding' || unit.bombArmed || !unit.alive) return;
@@ -2845,6 +2984,7 @@
     else { ctx.font=`${u.r*1.5}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(DEFS.coolguy.emoji,u.x,u.y+1); }
   }
   function drawCoolGlasses(){
+    drawHammers();
     for(const g of coolGlasses){
       ctx.save(); ctx.translate(g.x,g.y); ctx.rotate(g.age*12);
       ctx.font='28px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -3059,7 +3199,10 @@
   }
   // ---- Sprites for: tired, poker, drunk, blacksmith, magician, pingpong, gravity ----
   const OBJ_IMG=Object.assign(new Image(),{src:'objection.png'});
+  const SLEEP_IMG=Object.assign(new Image(),{src:'sleeping.png'});
   const GEN_SPR={
+    cat:Object.assign(new Image(),{src:'cat.png'}),
+    dummy:Object.assign(new Image(),{src:'dummy.png'}),
     pirate:Object.assign(new Image(),{src:'pirate.png'}),
     phoenix:Object.assign(new Image(),{src:'phoenixguy.png'}),
     tired:Object.assign(new Image(),{src:'tiredguy.png'}),
@@ -3749,6 +3892,10 @@ function blessingOnDamage(u,dmg){
       if(dmg>D.negateThreshold) constructionWalls.forEach(w=>{ if(w.team===target.team) w.durability--; });
       dmg*=(1-D.negateChance);
     }
+    if(target.defKey==='cat' && hasModifier(target,'sleepy') && attacker && attacker!==target && !parryBypass && dmg>0){
+      parryBypass=true; dealDamage(target,attacker,dmg*1.5,null,true); parryBypass=false;
+      return false;
+    }
     if(target.defKey==='boxing' && hasModifier(target,'untouchable') && attacker && attacker!==target && !parryBypass && !(target.shrineLockT>0) && dmg>0){
       const pc=target.hp<target.maxhp*DEFS.boxing.parryLowHp?DEFS.boxing.untouchParryLow:DEFS.boxing.untouchParry;
       if(Math.random()<pc){
@@ -3787,6 +3934,20 @@ function blessingOnDamage(u,dmg){
     dmg*=genDmgTakenMult(target);
     if(target.naughtyT>0) dmg*=1.25;
     blessingOnDamage(target,dmg);
+    if(target.defKey==='blacksmith' && hasModifier(target,'trueBlacksmith')){
+      tbInit(target);
+      for(const part of ['Shield','Helmet']){
+        if(dmg<=0) break;
+        if(target['bs'+part+'Broken']) continue;
+        const a=Math.min(target['bs'+part],dmg);
+        target['bs'+part]-=a; dmg-=a;
+        if(target['bs'+part]<=0.001){
+          target['bs'+part]=0; target['bs'+part+'Broken']=true; target['bs'+part+'Count']=0;
+          addFloater(target.x,target.y-target.r-30,part.toUpperCase()+' BROKEN!','#ff5b5b');
+        }
+      }
+      if(dmg<=0.01){ return false; }
+    }
     let shieldDamage=0;
     if(target.shield>0){ const ab=Math.min(target.shield,dmg); target.shield-=ab; dmg-=ab; shieldDamage=ab; ring(target.x,target.y,'#ffffff',target.r+20); if(dmg<=0.01){ countPocketeerDamage(target,shieldDamage); return false; } }
     const before=target.hp, dt0=target.damageTaken||0, wasAlive=target.alive;
@@ -3795,6 +3956,13 @@ function blessingOnDamage(u,dmg){
     const damageTaken=Math.max(dealt,(target.damageTaken||0)-dt0);
     if(target.defKey==='megaphone' && damageTaken>0) megaphoneYell(target,damageTaken);
     countPocketeerDamage(target,shieldDamage+damageTaken);
+    if(dealt>0 && target.defKey==='cat' && !hasModifier(target,'sleepy')) target.catAngry=true;
+    if(dealt>0 && target.defKey==='dummy'){
+      target.statHits=(target.statHits||0)+1; target.statTotal=(target.statTotal||0)+dealt;
+      target.statMax=Math.max(target.statMax||0,dealt);
+      if(target.statFirst===undefined) target.statFirst=meleeClock;
+      target.statLog=(target.statLog||[]).filter(e=>meleeClock-e[0]<=5).concat([[meleeClock,dealt]]);
+    }
     if(dealt>0 && genOn(target,'bloodlust')){
       target.bloodAcc=(target.bloodAcc||0)+dealt;
       const step=BLOOD_STACK_HP*target.maxhp;
@@ -3963,6 +4131,8 @@ function blessingOnDamage(u,dmg){
     updateJack(dt);
     updateBoxingExtras(dt);
     updateSwap(dt);
+    updateCat(dt);
+    updateHammers(dt);
     updateEquitation(dt);
     updateConstruction(dt);
     updateAlienWindup(dt);
@@ -4268,7 +4438,7 @@ function blessingOnDamage(u,dmg){
           }
           const projectileStart=projectiles.length;
           try{
-            if(unit.stunTimer>0 || unit.attackDisabled>0 || unit.sleepTimer>0) continue;
+            if(unit.stunTimer>0 || unit.attackDisabled>0 || unit.sleepTimer>0 || unit.defKey==='dummy' || (unit.defKey==='cat' && !(unit.catAngry && !hasModifier(unit,'sleepy')))) continue;
 
         if(unit.defKey==='laser'){
           unit.laserFiring=Math.max(0,(unit.laserFiring||0)-dt);
@@ -4524,6 +4694,15 @@ function blessingOnDamage(u,dmg){
             unit.cdSword=(unit.cdSword===undefined?0:unit.cdSword)-dt; if(unit.swordT>0) unit.swordT-=dt;
             if(side<0 && unit.cdSword<=0 && dist(unit,target)-(unit.r+target.r)<=90){
               unit.cdSword=0.45; unit.swordT=0.2; dealDamage(unit,target,70+(m('cutlass')?30:0),null,true);
+            }
+          }
+          if(unit.defKey==='cat' && unit.catAngry && !hasModifier(unit,'sleepy')){
+            unit.cdCat=(unit.cdCat||0)-dt;
+            if(unit.cdCat<=0 && target && !(unit.rollT>0)){
+              if(hasModifier(unit,'rollingKitty')){
+                unit.cdCat=DEFS.cat.rollCd;
+                unit.rollDir=Math.atan2(target.y-unit.y,target.x-unit.x); unit.rollT=DEFS.cat.rollMax; unit.rollAng=0;
+              } else { unit.cdCat=DEFS.cat.pulseCd; catPulse(unit); }
             }
           }
           if(unit.defKey==='phoenix'){
@@ -4858,10 +5037,13 @@ function blessingOnDamage(u,dmg){
             unit.swingAngle=Math.atan2(target.y-unit.y,target.x-unit.x);
             unit.swingKind='boxing';
             if(hasModifier(unit,'unbeatable') && (kind==='punch' || kind==='uppercut' || kind==='downward strike')) boxingCleave(unit,target,dmg);
-            if(kind==='punch' && Math.random()<DEFS.boxing.comboChance){
+            if(kind==='punch' && ((unit.noComboStreak||0)>=DEFS.boxing.streakForCombo || Math.random()<DEFS.boxing.comboChance)){
+              unit.noComboStreak=0;
               unit.comboQueue=DEFS.boxing.comboMin+Math.floor(Math.random()*(DEFS.boxing.comboMax-DEFS.boxing.comboMin+1));
               unit.comboTarget=target; unit.comboT=DEFS.boxing.comboGap;
               addFloater(target.x,target.y-target.r-34,'COMBO!','#ffb454');
+            } else if(kind==='punch'){
+              unit.noComboStreak=(unit.noComboStreak||0)+1;
             }
             if(idleReady){
               addFloater(target.x, target.y-target.r-20, 'UNBEATABLE!', '#ff5b5b');
@@ -5038,12 +5220,22 @@ function blessingOnDamage(u,dmg){
               unit.forgeTimer -= forgeInterval;
               const forgeGain = dB.forgeGain + (hasModifier(unit, 'forgery') ? 5 : 0);
               unit.forgeBonus += forgeGain;
+              if(hasModifier(unit,'trueBlacksmith')) tbForge(unit);
               forgeSparks.push({x:unit.x,y:unit.y- unit.r-8,life:0.45,maxLife:0.45});
               addFloater(unit.x, unit.y-unit.r-6, `+${forgeGain} DMG`, '#ffcf6b');
               log(`🔥 ${DEFS[unit.defKey].name} reforges — hammer damage now ${dB.damage+unit.forgeBonus}.`);
             }
           } else {
             unit.forgeTimer = 0;
+          }
+          if(hasModifier(unit,'trueBlacksmith') && target){
+            const TB=dB, bDmg=dB.damage+unit.forgeBonus;
+            unit.cdHammer=(unit.cdHammer||0)-dt; unit.cdZap=(unit.cdZap||0)-dt;
+            if(gap>dB.nearRange && unit.cdHammer<=0 && !unit.hammerOut && unit.attackDisabled<=0){
+              unit.cdHammer=TB.hammerCd; throwHammer(unit,target,bDmg*TB.hammerFrac);
+            } else if(gap>dB.meleeRange && gap<=dB.nearRange && unit.cdZap<=0 && unit.attackDisabled<=0){
+              unit.cdZap=TB.zapCd; zapHammer(unit,target,bDmg*TB.zapFrac);
+            }
           }
           if(target && gap<=dB.meleeRange && unit.cdBlacksmith<=0 && unit.attackDisabled<=0){
             const dmg = dB.damage + unit.forgeBonus;
@@ -6215,6 +6407,10 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
             drawCactusSprite(u);
           } else if(u.defKey==='headless'){
             drawFacingSprite(u,GEN_SPR.headless,u.vx>0.5);
+          } else if(u.defKey==='cat'){
+            drawCat(u);
+          } else if(u.defKey==='dummy'){
+            drawGenericSprite(u,GEN_SPR.dummy); drawDummyStats(u);
           } else if(GEN_SPR[u.defKey]){
             drawGenericSprite(u,GEN_SPR[u.defKey]);
           } else if(u.defKey==='megaphone'){
@@ -6252,6 +6448,11 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
         ctx.fillRect(u.x-barW/2, u.y-u.r-10, hpW, 5);
         if(shW>0){ ctx.fillStyle = '#4da6ff'; ctx.fillRect(u.x-barW/2+hpW, u.y-u.r-10, shW, 5); }
 
+        if(u.defKey==='blacksmith' && hasModifier(u,'trueBlacksmith')){
+          ctx.font='10px Rubik, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+          ctx.fillStyle=getCss('--dim');
+          ctx.fillText(`shield ${Math.ceil(u.bsShield||0)}${u.bsShieldBroken?' (broken)':''}  helmet ${Math.ceil(u.bsHelmet||0)}${u.bsHelmetBroken?' (broken)':''}`, u.x, u.y+u.r+14);
+        }
         if(u.defKey==='blacksmith' && u.forgeBonus>0){
           ctx.font = '11px Rubik, sans-serif';
           ctx.fillStyle = '#ffcf6b';
@@ -6318,6 +6519,7 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
       screenCtx.drawImage(lo,12*k,0,canvas.width,canvas.height); screenCtx.drawImage(lo,-12*k,2*k,canvas.width,canvas.height); screenCtx.restore();
     }
     if(impactT>0 && impact) drawImpact();
+    flushDummyStats();
   }
 
   function hpSummary(team){
@@ -6565,6 +6767,7 @@ hitIsRanged=true; const didHit = dealDamage(p.owner, u, p.dmg, {x:p.vx,y:p.vy}, 
     fireworkBursts = [];
     tapeWalls = [];
     forgeSparks = [];
+    hammers.length=0; hamZaps.length=0;
     gameOver = false;
     paused = false;
     lastTs = null;
